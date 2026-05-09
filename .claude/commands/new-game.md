@@ -110,11 +110,9 @@ Create `games/[slug]/index.html` using the template below. Fill in all placehold
   <meta name="twitter:title" content="[Game Name] — BlindFold Games">
   <meta name="twitter:description" content="Play [Game Name] free in your browser. No download, no login.">
   <meta name="twitter:image" content="https://mapwizard.gg/assets/games/[slug].png">
-  <!-- Google Analytics: replace G-XXXXXXXXXX with your GA4 Measurement ID, then uncomment -->
-  <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
-  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script> -->
-  <!-- Google AdSense: replace ca-pub-XXXXXXXXXXXXXXXX with your Publisher ID, then uncomment (after approval) -->
-  <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script> -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-GFKCDCHWWB"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-GFKCDCHWWB');</script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4276539964985606" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="../../css/style.css">
 </head>
 <body>
