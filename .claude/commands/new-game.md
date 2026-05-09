@@ -24,6 +24,7 @@ Collect the following, either from args or by asking the user:
 
 Then derive:
 - **Slug**: lowercase game name, spaces → hyphens, strip non-alphanumeric. "Space Invaders" → `space-invaders`
+- **Needs mobile controls**: `true` if Controls mentions keyboard keys or mouse movement/aiming; `false` if the game is click/tap only (browser already maps taps to clicks automatically)
 - **Thumb class** (for `card-thumb` and `mini-thumb`):
   - Shooter → `space`
   - Puzzle → `teal`
@@ -240,22 +241,44 @@ Create `games/[slug]/index.html` using the template below. Fill in all placehold
 
 ## Step 4 — Create game scaffold (only if user said "scratch")
 
-Create `games/[slug]/game.html` — a minimal self-contained canvas game. This scaffold is already iframe-ready: it fills `100vw × 100vh`, hides overflow, and scales the canvas to fit the frame at any size while preserving 16:9 (640×360). Replace the placeholder render code with the actual game.
+Create `games/[slug]/game.html` — a minimal self-contained canvas game. This scaffold is iframe-ready and already includes the full mobile controls pattern (joystick + action button). Replace `[Game Name]` and `[ACTION-LABEL]` placeholders and add game logic where commented.
 
 ```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>[Game Name]</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #000; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
     canvas { display: block; image-rendering: pixelated; }
+
+    /* Mobile controls — hidden on desktop */
+    #mc { display: none; }
+    @media (pointer: coarse) {
+      #mc { display: block; }
+      canvas { touch-action: none; cursor: none; }
+    }
+    #mc-left, #mc-right { position: fixed; z-index: 50; touch-action: none; -webkit-tap-highlight-color: transparent; user-select: none; }
+    #mc-joy-ring { position: fixed; width: 110px; height: 110px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); pointer-events: none; z-index: 51; transform: translate(-50%,-50%); display: none; }
+    #mc-joy-dot  { position: fixed; width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,0.4); border: 2px solid rgba(255,255,255,0.85); pointer-events: none; z-index: 52; transform: translate(-50%,-50%); display: none; }
+    #mc-fire-btn { position: fixed; width: 84px; height: 84px; border-radius: 50%; background: rgba(249,115,22,0.3); border: 3px solid rgba(249,115,22,0.7); color: rgba(255,255,255,0.9); font-family: sans-serif; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.12em; display: none; align-items: center; justify-content: center; pointer-events: none; z-index: 51; transition: background 0.08s; }
+    #mc-fire-btn.active { background: rgba(249,115,22,0.65); border-color: rgba(249,115,22,1); }
   </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
+
+<div id="mc">
+  <div id="mc-left"></div>
+  <div id="mc-right"></div>
+  <div id="mc-joy-ring"></div>
+  <div id="mc-joy-dot"></div>
+  <div id="mc-fire-btn">[ACTION-LABEL]</div>
+</div>
+
 <script>
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
@@ -275,12 +298,117 @@ Create `games/[slug]/game.html` — a minimal self-contained canvas game. This s
 
   // ── Input ─────────────────────────────────────────────
   const keys = {};
+  const mouse = { x: 320, y: 180, down: false, justPressed: false };
+
   window.addEventListener('keydown', e => keys[e.key] = true);
   window.addEventListener('keyup',   e => keys[e.key] = false);
+  canvas.addEventListener('mousemove', e => {
+    const r = canvas.getBoundingClientRect();
+    mouse.x = (e.clientX - r.left) * (640 / r.width);
+    mouse.y = (e.clientY - r.top)  * (360 / r.height);
+  });
+  canvas.addEventListener('mousedown', () => { mouse.down = true; mouse.justPressed = true; });
+  canvas.addEventListener('mouseup',   () => { mouse.down = false; });
+
+  // ── Mobile controls ───────────────────────────────────
+  window.addEventListener('load', function() {
+    if (!window.matchMedia('(pointer: coarse)').matches) return;
+    const mcLeft    = document.getElementById('mc-left');
+    const mcRight   = document.getElementById('mc-right');
+    const joyRing   = document.getElementById('mc-joy-ring');
+    const joyDot    = document.getElementById('mc-joy-dot');
+    const fireBtnEl = document.getElementById('mc-fire-btn');
+    const JOY_RADIUS = 48;
+    let joyId = null, joyX = 0, joyY = 0, fireId = null;
+
+    function layout() {
+      const r = canvas.getBoundingClientRect();
+      const half = r.width / 2, m = Math.min(r.width * 0.045, 22), fb = 84;
+      mcLeft.style.cssText  = `left:${r.left}px;top:${r.top}px;width:${half}px;height:${r.height}px;`;
+      mcRight.style.cssText = `left:${r.left + half}px;top:${r.top}px;width:${half}px;height:${r.height}px;`;
+      fireBtnEl.style.display = 'flex';
+      fireBtnEl.style.left = (r.right  - fb - m) + 'px';
+      fireBtnEl.style.top  = (r.bottom - fb - m) + 'px';
+    }
+    layout();
+    window.addEventListener('resize', layout);
+
+    function setMove(nx, ny, mag) {
+      const t = 0.28;
+      keys['ArrowUp']    = mag > 10 && ny < -t;
+      keys['ArrowDown']  = mag > 10 && ny >  t;
+      keys['ArrowLeft']  = mag > 10 && nx < -t;
+      keys['ArrowRight'] = mag > 10 && nx >  t;
+    }
+    function clearMove() { ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].forEach(k => keys[k] = false); }
+
+    mcLeft.addEventListener('touchstart', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (joyId !== null) continue;
+        joyId = t.identifier; joyX = t.clientX; joyY = t.clientY;
+        joyRing.style.left = t.clientX + 'px'; joyRing.style.top = t.clientY + 'px';
+        joyDot.style.left  = t.clientX + 'px'; joyDot.style.top  = t.clientY + 'px';
+        joyRing.style.display = 'block'; joyDot.style.display = 'block';
+      }
+    }, { passive: false });
+
+    mcLeft.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier !== joyId) continue;
+        const dx = t.clientX - joyX, dy = t.clientY - joyY, mag = Math.hypot(dx, dy);
+        const nx = mag > 0 ? dx / mag : 0, ny = mag > 0 ? dy / mag : 0;
+        const cap = Math.min(mag, JOY_RADIUS);
+        joyDot.style.left = (joyX + nx * cap) + 'px'; joyDot.style.top = (joyY + ny * cap) + 'px';
+        setMove(nx, ny, mag);
+      }
+    }, { passive: false });
+
+    function onLeftEnd(e) {
+      for (const t of e.changedTouches) {
+        if (t.identifier !== joyId) continue;
+        joyId = null; joyRing.style.display = 'none'; joyDot.style.display = 'none'; clearMove();
+      }
+    }
+    mcLeft.addEventListener('touchend',    onLeftEnd, { passive: false });
+    mcLeft.addEventListener('touchcancel', onLeftEnd, { passive: false });
+
+    mcRight.addEventListener('touchstart', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (fireId !== null) continue;
+        fireId = t.identifier; mouse.down = true; mouse.justPressed = true;
+        fireBtnEl.classList.add('active');
+      }
+    }, { passive: false });
+
+    function onFireEnd(e) {
+      for (const t of e.changedTouches) {
+        if (t.identifier !== fireId) continue;
+        fireId = null; mouse.down = false; fireBtnEl.classList.remove('active');
+      }
+    }
+    mcRight.addEventListener('touchend',    onFireEnd, { passive: false });
+    mcRight.addEventListener('touchcancel', onFireEnd, { passive: false });
+
+    // Optional auto-aim for shooter games — point mouse at nearest enemy each frame.
+    // Uncomment and adapt if your game has an enemies array and a player object:
+    //
+    // ;(function aimLoop() {
+    //   if (player && enemies && enemies.length > 0) {
+    //     let nearest = enemies[0], minD = Infinity;
+    //     for (const e of enemies) { const d = Math.hypot(e.x-player.x, e.y-player.y); if (d < minD) { minD=d; nearest=e; } }
+    //     mouse.x = nearest.x; mouse.y = nearest.y;
+    //   }
+    //   requestAnimationFrame(aimLoop);
+    // })();
+  });
 
   // ── Update ────────────────────────────────────────────
   function update() {
     // Add your game logic here
+    mouse.justPressed = false;
   }
 
   // ── Render ────────────────────────────────────────────
@@ -310,6 +438,157 @@ Create `games/[slug]/game.html` — a minimal self-contained canvas game. This s
 </body>
 </html>
 ```
+
+---
+
+## Step 4b — Add mobile controls to existing game file (skip if scratch or not needed)
+
+Skip this step if:
+- The game source was `scratch` (scaffold already includes controls), OR
+- **Needs mobile controls** is `false` (click-only game — taps map to clicks automatically)
+
+Otherwise, open the provided game HTML file and make the following three additions:
+
+**1 — Viewport meta:** add `user-scalable=no` if not already present:
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+```
+
+**2 — CSS:** add inside `<style>` (or a new `<style>` block in `<head>`):
+```css
+#mc { display: none; }
+@media (pointer: coarse) {
+  #mc { display: block; }
+  canvas { touch-action: none; cursor: none; }
+}
+#mc-left, #mc-right { position: fixed; z-index: 50; touch-action: none; -webkit-tap-highlight-color: transparent; user-select: none; }
+#mc-joy-ring { position: fixed; width: 110px; height: 110px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); pointer-events: none; z-index: 51; transform: translate(-50%,-50%); display: none; }
+#mc-joy-dot  { position: fixed; width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,0.4); border: 2px solid rgba(255,255,255,0.85); pointer-events: none; z-index: 52; transform: translate(-50%,-50%); display: none; }
+#mc-fire-btn { position: fixed; width: 84px; height: 84px; border-radius: 50%; background: rgba(249,115,22,0.3); border: 3px solid rgba(249,115,22,0.7); color: rgba(255,255,255,0.9); font-family: sans-serif; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.12em; display: none; align-items: center; justify-content: center; pointer-events: none; z-index: 51; transition: background 0.08s; }
+#mc-fire-btn.active { background: rgba(249,115,22,0.65); border-color: rgba(249,115,22,1); }
+```
+
+**3 — HTML:** add immediately after the game's `<canvas>` element (or the main game container):
+```html
+<div id="mc">
+  <div id="mc-left"></div>
+  <div id="mc-right"></div>
+  <div id="mc-joy-ring"></div>
+  <div id="mc-joy-dot"></div>
+  <div id="mc-fire-btn">[ACTION-LABEL]</div>
+</div>
+```
+Replace `[ACTION-LABEL]` with a short label matching the game's action (e.g. `FIRE`, `JUMP`, `ACT`).
+
+**4 — JS:** add at the end of `<body>` (after all existing scripts), adapting the variable names to match the game's input model:
+```html
+<script>
+window.addEventListener('load', function() {
+  if (!window.matchMedia('(pointer: coarse)').matches) return;
+  const mcLeft    = document.getElementById('mc-left');
+  const mcRight   = document.getElementById('mc-right');
+  const joyRing   = document.getElementById('mc-joy-ring');
+  const joyDot    = document.getElementById('mc-joy-dot');
+  const fireBtnEl = document.getElementById('mc-fire-btn');
+  // ↑ Use the game's canvas element reference for layout()
+  const gameCanvas = document.getElementById('[CANVAS-ID]');
+  const JOY_RADIUS = 48;
+  let joyId = null, joyX = 0, joyY = 0, fireId = null;
+
+  function layout() {
+    const r = gameCanvas.getBoundingClientRect();
+    const half = r.width / 2, m = Math.min(r.width * 0.045, 22), fb = 84;
+    mcLeft.style.cssText  = `left:${r.left}px;top:${r.top}px;width:${half}px;height:${r.height}px;`;
+    mcRight.style.cssText = `left:${r.left + half}px;top:${r.top}px;width:${half}px;height:${r.height}px;`;
+    fireBtnEl.style.display = 'flex';
+    fireBtnEl.style.left = (r.right  - fb - m) + 'px';
+    fireBtnEl.style.top  = (r.bottom - fb - m) + 'px';
+  }
+  layout();
+  window.addEventListener('resize', layout);
+
+  // Adapt these key names to whatever the game uses for movement
+  function setMove(nx, ny, mag) {
+    const t = 0.28;
+    keys['ArrowUp']    = mag > 10 && ny < -t;  // or keys['w'], etc.
+    keys['ArrowDown']  = mag > 10 && ny >  t;
+    keys['ArrowLeft']  = mag > 10 && nx < -t;
+    keys['ArrowRight'] = mag > 10 && nx >  t;
+  }
+  function clearMove() { ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].forEach(k => keys[k] = false); }
+
+  mcLeft.addEventListener('touchstart', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (joyId !== null) continue;
+      joyId = t.identifier; joyX = t.clientX; joyY = t.clientY;
+      joyRing.style.left = t.clientX+'px'; joyRing.style.top = t.clientY+'px';
+      joyDot.style.left  = t.clientX+'px'; joyDot.style.top  = t.clientY+'px';
+      joyRing.style.display = 'block'; joyDot.style.display = 'block';
+    }
+  }, { passive: false });
+
+  mcLeft.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier !== joyId) continue;
+      const dx = t.clientX-joyX, dy = t.clientY-joyY, mag = Math.hypot(dx,dy);
+      const nx = mag > 0 ? dx/mag : 0, ny = mag > 0 ? dy/mag : 0;
+      const cap = Math.min(mag, JOY_RADIUS);
+      joyDot.style.left = (joyX+nx*cap)+'px'; joyDot.style.top = (joyY+ny*cap)+'px';
+      setMove(nx, ny, mag);
+    }
+  }, { passive: false });
+
+  function onLeftEnd(e) {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== joyId) continue;
+      joyId = null; joyRing.style.display='none'; joyDot.style.display='none'; clearMove();
+    }
+  }
+  mcLeft.addEventListener('touchend',    onLeftEnd, { passive: false });
+  mcLeft.addEventListener('touchcancel', onLeftEnd, { passive: false });
+
+  mcRight.addEventListener('touchstart', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (fireId !== null) continue;
+      fireId = t.identifier;
+      // Adapt: set whatever the game uses for "action pressed"
+      mouse.down = true; mouse.justPressed = true;
+      fireBtnEl.classList.add('active');
+    }
+  }, { passive: false });
+
+  function onFireEnd(e) {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== fireId) continue;
+      fireId = null;
+      mouse.down = false;  // adapt to game's action variable
+      fireBtnEl.classList.remove('active');
+    }
+  }
+  mcRight.addEventListener('touchend',    onFireEnd, { passive: false });
+  mcRight.addEventListener('touchcancel', onFireEnd, { passive: false });
+
+  // Auto-aim for shooter games: uncomment and adapt if game has enemies array + player object
+  // ;(function aimLoop() {
+  //   if (player && enemies && enemies.length > 0) {
+  //     let nearest = enemies[0], minD = Infinity;
+  //     for (const e of enemies) { const d = Math.hypot(e.x-player.x, e.y-player.y); if (d < minD) { minD=d; nearest=e; } }
+  //     mouse.x = nearest.x; mouse.y = nearest.y;
+  //   }
+  //   requestAnimationFrame(aimLoop);
+  // })();
+});
+</script>
+```
+
+**Adaptation checklist:**
+- `[CANVAS-ID]` → the game's actual canvas element id
+- `keys['ArrowUp']` etc. → whatever key names the game uses for movement
+- `mouse.down` / `mouse.justPressed` → whatever the game uses to track the action button state
+- Uncomment and adapt the auto-aim loop for top-down shooters where the player faces enemies
 
 ---
 
