@@ -671,6 +671,10 @@ footer a:hover { color: var(--text); }
   .game-card.hero .card-thumb { height: 200px; }
 }
 
+@media (max-width: 900px) {
+  .game-sidebar-ads { display: none; }
+}
+
 @media (max-width: 700px) {
   :root { --sidebar-w: 0px; }
   .sidebar { display: none; }
@@ -678,7 +682,7 @@ footer a:hover { color: var(--text); }
   .small-card-grid { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
   .game-layout { flex-direction: column; }
   .ad-slot.rectangle { width: 100%; height: 100px; }
-  .content, .game-page-content, .about-game, .ad-banner { padding-left: 1rem; padding-right: 1rem; }
+  .content, .game-page-content, .about-game, .ad-banner, .game-controls, .game-page-shelf { padding-left: 1rem; padding-right: 1rem; }
 }
 
 @media (max-width: 480px) {
