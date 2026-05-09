@@ -681,6 +681,7 @@ footer a:hover { color: var(--text); }
   .main { margin-left: 0; }
   .small-card-grid { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
   .game-layout { flex-direction: column; }
+  .game-frame-wrap { flex: none; width: 100%; }
   .ad-slot.rectangle { width: 100%; height: 100px; }
   .content, .game-page-content, .about-game, .ad-banner, .game-controls, .game-page-shelf { padding-left: 1rem; padding-right: 1rem; }
 }
