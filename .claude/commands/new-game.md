@@ -99,6 +99,22 @@ Create `games/[slug]/index.html` using the template below. Fill in all placehold
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>[Game Name] — BlindFold Games</title>
   <meta name="description" content="Play [Game Name] free in your browser. No download, no login.">
+  <link rel="canonical" href="https://mapwizard.gg/games/[slug]/">
+  <meta property="og:title" content="[Game Name] — BlindFold Games">
+  <meta property="og:description" content="Play [Game Name] free in your browser. No download, no login.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mapwizard.gg/games/[slug]/">
+  <meta property="og:image" content="https://mapwizard.gg/assets/games/[slug].png">
+  <meta property="og:site_name" content="BlindFold Games">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="[Game Name] — BlindFold Games">
+  <meta name="twitter:description" content="Play [Game Name] free in your browser. No download, no login.">
+  <meta name="twitter:image" content="https://mapwizard.gg/assets/games/[slug].png">
+  <!-- Google Analytics: replace G-XXXXXXXXXX with your GA4 Measurement ID, then uncomment -->
+  <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script> -->
+  <!-- Google AdSense: replace ca-pub-XXXXXXXXXXXXXXXX with your Publisher ID, then uncomment (after approval) -->
+  <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script> -->
   <link rel="stylesheet" href="../../css/style.css">
 </head>
 <body>
@@ -647,19 +663,34 @@ Find the `.game-page-shelf` div (the Top Picks section at the bottom). Insert a 
 
 ---
 
-## Step 7 — Commit and push
+## Step 7 — Update sitemap.xml
+
+Add a new `<url>` entry to `sitemap.xml` for the new game:
+
+```xml
+  <url>
+    <loc>https://mapwizard.gg/games/[slug]/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <lastmod>[today's date as YYYY-MM-DD]</lastmod>
+  </url>
+```
+
+---
+
+## Step 8 — Commit and push
 
 Stage all new and modified files, then commit and push:
 
 ```bash
-git add games/[slug]/ assets/games/[slug].png index.html games/*/index.html
+git add games/[slug]/ assets/games/[slug].png index.html games/*/index.html sitemap.xml
 git commit -m "feat: add [Game Name] to BlindFold Games portal"
 git push
 ```
 
 ---
 
-## Step 8 — Report completion
+## Step 9 — Report completion
 
 Tell the user:
 - What files were created
