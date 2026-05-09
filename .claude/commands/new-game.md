@@ -478,19 +478,30 @@ Create `games/[slug]/game.html` — a minimal self-contained canvas game. This s
     // Add your drawing code here
   }
 
-  // ── Game loop ─────────────────────────────────────────
-  function loop() {
-    if (phase === 'start') {
-      startPulse += 0.08;
-      renderStartScreen();
-    } else {
-      update();
-      render();
+  // ── Game loop (fixed-step — frame-rate independent) ──
+  // Running inside a fixed accumulator means physics ticks at
+  // exactly 60 steps/second regardless of monitor Hz (60/120/144).
+  const STEP = 1000 / 60;
+  let lastTime = 0, accumulator = 0;
+
+  function loop(now) {
+    const dt = lastTime === 0 ? 0 : Math.min(now - lastTime, 100);
+    lastTime = now;
+    accumulator += dt;
+    while (accumulator >= STEP) {
+      if (phase === 'start') {
+        startPulse += 0.08;
+      } else {
+        update();
+      }
+      accumulator -= STEP;
     }
+    if (phase === 'start') renderStartScreen();
+    else render();
     requestAnimationFrame(loop);
   }
 
-  loop();
+  requestAnimationFrame(loop);
 </script>
 </body>
 </html>

@@ -76,8 +76,11 @@
 
   // ── Game state ─────────────────────────────────────────────
   let snake, dir, nextDir, fruit, powerUp, score, highScore = 0, phase;
-  let tickAccum = 0, lastTime = 0;
+  let tickAccum = 0;
   let pulse = 0, starRot = 0, startPulse = 0;
+
+  const STEP = 1000 / 60;   // fixed physics step — frame-rate independent
+  let lastTime = 0, accumulator = 0;
 
   // ── Resize ─────────────────────────────────────────────────
   function resize() {
@@ -396,21 +399,21 @@
     ctx.fillText('CLICK  ·  TAP  ·  PRESS ANY KEY TO START', W/2, 326);
   }
 
-  // ── Game loop ──────────────────────────────────────────────
+  // ── Game loop (fixed-step — frame-rate independent) ────────
   function loop(now) {
-    const dt = Math.min(now - lastTime, 200);
+    const dt = lastTime === 0 ? 0 : Math.min(now - lastTime, 100);
     lastTime = now;
+    accumulator += dt;
 
-    if (phase === 'start') {
-      startPulse += 0.08;
-      renderStartScreen();
-    } else {
-      if (phase === 'playing') {
+    while (accumulator >= STEP) {
+      if (phase === 'start') {
+        startPulse += 0.08;
+      } else if (phase === 'playing') {
         if (powerUp) {
-          powerUp.ms -= dt;
+          powerUp.ms -= STEP;
           if (powerUp.ms <= 0) powerUp = null;
         }
-        tickAccum += dt;
+        tickAccum += STEP;
         while (tickAccum >= TICK_MS) {
           tick();
           tickAccum -= TICK_MS;
@@ -418,8 +421,11 @@
         pulse   += 0.1;
         starRot += 0.035;
       }
-      render();
+      accumulator -= STEP;
     }
+
+    if (phase === 'start') renderStartScreen();
+    else render();
 
     requestAnimationFrame(loop);
   }
@@ -454,7 +460,7 @@
   // ── Start ──────────────────────────────────────────────────
   initGame();
   resize();
-  requestAnimationFrame(t => { lastTime = t; loop(t); });
+  requestAnimationFrame(loop);
   window.addEventListener('load', () => { layoutDpad(); bindDpad(); });
 </script>
 </body>
