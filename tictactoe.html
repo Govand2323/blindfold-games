@@ -75,6 +75,9 @@
     .mode-btn.expert { border-color: #f97316; color: #f97316; }
     .mode-btn.expert:hover { background: #f97316; color: #fff; }
 
+    .mode-btn.random { border-color: #c084fc; color: #c084fc; }
+    .mode-btn.random:hover { background: #c084fc; color: #0a0a0a; }
+
     .mode-btn.pvp { border-color: #a8dadc; color: #a8dadc; }
     .mode-btn.pvp:hover { background: #a8dadc; color: #1a1a2e; }
 
@@ -243,6 +246,7 @@
     <button class="mode-btn rookie" data-mode="rookie">Rookie AI</button>
     <button class="mode-btn normal" data-mode="normal">Normal AI</button>
     <button class="mode-btn expert" data-mode="expert">Expert AI</button>
+    <button class="mode-btn random" data-mode="random">Random AI</button>
 
     <div class="ms-section">vs Human</div>
     <button class="mode-btn pvp" data-mode="pvp">vs Player</button>
@@ -286,14 +290,17 @@
       rookie: 'Rookie AI',
       normal: 'Normal AI',
       expert: 'Expert AI',
+      random: 'Random AI',
       pvp:    'vs Player',
     };
 
+    const RANDOM_POOL = ['rookie', 'normal', 'expert'];
+
     // AI "thinking" delay per difficulty (ms)
-    const AI_DELAY = { rookie: 350, normal: 500, expert: 700 };
+    const AI_DELAY = { rookie: 350, normal: 500, expert: 700, random: 500 };
 
     let board, current, gameOver, locked;
-    let mode = null;
+    let mode = null, activeDifficulty = null;
     let playerMark = null, aiMark = null;
     let scores = { left: 0, right: 0, D: 0 };
 
@@ -325,10 +332,15 @@
       locked   = false;
 
       if (isAiMode()) {
+        // For random mode, pick a difficulty each new game
+        activeDifficulty = mode === 'random'
+          ? RANDOM_POOL[Math.floor(Math.random() * RANDOM_POOL.length)]
+          : mode;
         playerMark = Math.random() < 0.5 ? 'X' : 'O';
         aiMark     = playerMark === 'X' ? 'O' : 'X';
         current    = Math.random() < 0.5 ? 'X' : 'O';
       } else {
+        activeDifficulty = null;
         playerMark = aiMark = null;
         current = 'X';
       }
@@ -340,7 +352,7 @@
       if (isAiMode() && current === aiMark) {
         locked = true;
         render();
-        setTimeout(doAiMove, AI_DELAY[mode]);
+        setTimeout(doAiMove, AI_DELAY[activeDifficulty]);
       }
     }
 
@@ -348,8 +360,12 @@
     function updateLabels() {
       const badge = document.getElementById('mode-badge');
       if (isAiMode()) {
-        badge.style.color = { rookie: '#4ade80', normal: '#fbbf24', expert: '#f97316' }[mode];
-        badge.textContent = `${MODE_LABELS[mode]}  ·  You: ${playerMark}  AI: ${aiMark}`;
+        const diffColor = { rookie: '#4ade80', normal: '#fbbf24', expert: '#f97316' }[activeDifficulty];
+        badge.style.color = diffColor;
+        const diffLabel = mode === 'random'
+          ? `Random AI (${MODE_LABELS[activeDifficulty]})`
+          : MODE_LABELS[mode];
+        badge.textContent = `${diffLabel}  ·  You: ${playerMark}  AI: ${aiMark}`;
         document.getElementById('label-left').textContent  = 'You';
         document.getElementById('label-right').textContent = 'AI';
       } else {
@@ -439,7 +455,7 @@
           locked = true;
           render();
           updateStatus();
-          setTimeout(doAiMove, AI_DELAY[mode]);
+          setTimeout(doAiMove, AI_DELAY[activeDifficulty]);
         } else {
           render();
           updateStatus();
@@ -548,8 +564,8 @@
 
     function doAiMove() {
       if (gameOver || current !== aiMark) return;
-      const move = mode === 'rookie' ? getRookieMove()
-                 : mode === 'normal' ? getNormalMove()
+      const move = activeDifficulty === 'rookie' ? getRookieMove()
+                 : activeDifficulty === 'normal' ? getNormalMove()
                  : getExpertMove();
       board[move] = aiMark;
       locked = false;
