@@ -28,56 +28,55 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: clamp(1rem, 2.5vh, 2rem);
+      gap: clamp(0.5rem, 1.6vh, 1.1rem);
       z-index: 100;
+      padding: 1rem;
     }
 
-    #mode-screen .ms-title {
+    .ms-title {
       font-size: clamp(1.4rem, 4vw, 2.8rem);
       letter-spacing: 0.12em;
       color: #e94560;
       text-transform: uppercase;
       text-align: center;
       line-height: 1.1;
+      margin-bottom: 0.4rem;
     }
 
-    #mode-screen .ms-sub {
-      font-size: clamp(0.75rem, 1.5vw, 0.95rem);
-      color: #7a7a90;
-      letter-spacing: 0.08em;
-      margin-bottom: 0.5rem;
+    .ms-section {
+      font-size: clamp(0.58rem, 1.1vw, 0.72rem);
+      letter-spacing: 0.14em;
+      color: #555570;
+      text-transform: uppercase;
+      margin-top: 0.6rem;
+      margin-bottom: 0.1rem;
     }
 
     .mode-btn {
-      padding: clamp(0.55rem, 1.6vh, 0.9rem) clamp(1.5rem, 5vw, 3rem);
-      font-size: clamp(0.8rem, 1.7vw, 1.05rem);
+      padding: clamp(0.45rem, 1.3vh, 0.75rem) clamp(1.2rem, 4vw, 2.5rem);
+      font-size: clamp(0.78rem, 1.6vw, 1rem);
       font-weight: 700;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.09em;
       border: 2px solid;
-      border-radius: 12px;
+      border-radius: 10px;
       cursor: pointer;
-      transition: all 0.18s;
+      transition: all 0.16s;
       text-transform: uppercase;
       background: transparent;
-      min-width: clamp(170px, 28vw, 240px);
+      width: clamp(180px, 28vw, 240px);
     }
 
-    .mode-btn.vs-ai {
-      border-color: #e94560;
-      color: #e94560;
-    }
-    .mode-btn.vs-ai:hover {
-      background: #e94560;
-      color: #fff;
-    }
-    .mode-btn.vs-player {
-      border-color: #a8dadc;
-      color: #a8dadc;
-    }
-    .mode-btn.vs-player:hover {
-      background: #a8dadc;
-      color: #1a1a2e;
-    }
+    .mode-btn.rookie { border-color: #4ade80; color: #4ade80; }
+    .mode-btn.rookie:hover { background: #4ade80; color: #0a0a0a; }
+
+    .mode-btn.normal { border-color: #fbbf24; color: #fbbf24; }
+    .mode-btn.normal:hover { background: #fbbf24; color: #0a0a0a; }
+
+    .mode-btn.expert { border-color: #f97316; color: #f97316; }
+    .mode-btn.expert:hover { background: #f97316; color: #fff; }
+
+    .mode-btn.pvp { border-color: #a8dadc; color: #a8dadc; }
+    .mode-btn.pvp:hover { background: #a8dadc; color: #1a1a2e; }
 
     /* ── Game layout ──────────────────────────────────────── */
     .game-container {
@@ -108,10 +107,9 @@
     }
 
     #mode-badge {
-      font-size: clamp(0.58rem, 1vw, 0.72rem);
-      letter-spacing: 0.1em;
+      font-size: clamp(0.55rem, 1vw, 0.7rem);
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #7a7a90;
       margin-top: -0.3rem;
     }
 
@@ -220,7 +218,6 @@
     }
 
     .cell.locked { cursor: not-allowed; }
-
     .cell.x { color: #e94560; }
     .cell.o { color: #a8dadc; }
 
@@ -241,9 +238,14 @@
   <!-- Mode selection overlay -->
   <div id="mode-screen">
     <div class="ms-title">Tic Tac Toe</div>
-    <div class="ms-sub">Choose how to play</div>
-    <button class="mode-btn vs-ai" id="btn-ai">Play vs AI</button>
-    <button class="mode-btn vs-player" id="btn-pvp">Play vs Player</button>
+
+    <div class="ms-section">vs AI</div>
+    <button class="mode-btn rookie" data-mode="rookie">Rookie AI</button>
+    <button class="mode-btn normal" data-mode="normal">Normal AI</button>
+    <button class="mode-btn expert" data-mode="expert">Expert AI</button>
+
+    <div class="ms-section">vs Human</div>
+    <button class="mode-btn pvp" data-mode="pvp">vs Player</button>
   </div>
 
   <!-- Game screen -->
@@ -280,18 +282,25 @@
       [0,4,8],[2,4,6]
     ];
 
-    // ── State ────────────────────────────────────────────────
-    let board, current, gameOver, locked;
-    let mode = null;          // 'pvp' | 'ai'
-    let playerMark = null;    // 'X' | 'O' (AI mode only)
-    let aiMark = null;
-    let scores = { left: 0, right: 0, D: 0 };
-    // In PvP:  left=X wins,      right=O wins
-    // In AI:   left=player wins, right=AI wins
+    const MODE_LABELS = {
+      rookie: 'Rookie AI',
+      normal: 'Normal AI',
+      expert: 'Expert AI',
+      pvp:    'vs Player',
+    };
 
-    // ── Mode screen ──────────────────────────────────────────
-    document.getElementById('btn-ai').addEventListener('click',  () => startGame('ai'));
-    document.getElementById('btn-pvp').addEventListener('click', () => startGame('pvp'));
+    // AI "thinking" delay per difficulty (ms)
+    const AI_DELAY = { rookie: 350, normal: 500, expert: 700 };
+
+    let board, current, gameOver, locked;
+    let mode = null;
+    let playerMark = null, aiMark = null;
+    let scores = { left: 0, right: 0, D: 0 };
+
+    // ── Mode selection ───────────────────────────────────────
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => startGame(btn.dataset.mode));
+    });
 
     function showModeScreen() {
       document.getElementById('mode-screen').style.display = 'flex';
@@ -301,47 +310,50 @@
     }
 
     function startGame(selectedMode) {
-      mode = selectedMode;
+      mode   = selectedMode;
       scores = { left: 0, right: 0, D: 0 };
       hideModeScreen();
       init();
     }
 
     // ── Init ─────────────────────────────────────────────────
+    function isAiMode() { return mode !== 'pvp'; }
+
     function init() {
       board    = Array(9).fill(null);
       gameOver = false;
       locked   = false;
 
-      if (mode === 'ai') {
+      if (isAiMode()) {
         playerMark = Math.random() < 0.5 ? 'X' : 'O';
         aiMark     = playerMark === 'X' ? 'O' : 'X';
         current    = Math.random() < 0.5 ? 'X' : 'O';
       } else {
-        playerMark = null;
-        aiMark     = null;
-        current    = 'X';
+        playerMark = aiMark = null;
+        current = 'X';
       }
 
       updateLabels();
       render();
       updateStatus();
 
-      if (mode === 'ai' && current === aiMark) {
+      if (isAiMode() && current === aiMark) {
         locked = true;
         render();
-        setTimeout(doAiMove, 700);
+        setTimeout(doAiMove, AI_DELAY[mode]);
       }
     }
 
-    // ── Labels & badge ───────────────────────────────────────
+    // ── Labels ───────────────────────────────────────────────
     function updateLabels() {
       const badge = document.getElementById('mode-badge');
-      if (mode === 'ai') {
-        badge.textContent = `vs AI  ·  You: ${playerMark}  AI: ${aiMark}`;
+      if (isAiMode()) {
+        badge.style.color = { rookie: '#4ade80', normal: '#fbbf24', expert: '#f97316' }[mode];
+        badge.textContent = `${MODE_LABELS[mode]}  ·  You: ${playerMark}  AI: ${aiMark}`;
         document.getElementById('label-left').textContent  = 'You';
         document.getElementById('label-right').textContent = 'AI';
       } else {
+        badge.style.color = '#a8dadc';
         badge.textContent = 'vs Player';
         document.getElementById('label-left').textContent  = 'X';
         document.getElementById('label-right').textContent = 'O';
@@ -352,7 +364,7 @@
     function updateStatus() {
       const el = document.getElementById('status');
       el.classList.remove('ai-turn');
-      if (mode === 'ai') {
+      if (isAiMode()) {
         if (current === aiMark) {
           el.textContent = 'AI thinking…';
           el.classList.add('ai-turn');
@@ -386,7 +398,7 @@
     // ── Player move ──────────────────────────────────────────
     function move(i) {
       if (gameOver || locked || board[i]) return;
-      if (mode === 'ai' && current === aiMark) return;
+      if (isAiMode() && current === aiMark) return;
       board[i] = current;
       afterMove();
     }
@@ -395,8 +407,7 @@
     function afterMove() {
       const win = checkWin();
       if (win) {
-        // Update scores by role
-        if (mode === 'ai') {
+        if (isAiMode()) {
           if (current === playerMark) scores.left++;
           else scores.right++;
         } else {
@@ -409,7 +420,7 @@
         highlight(win);
         const statusEl = document.getElementById('status');
         statusEl.classList.remove('ai-turn');
-        if (mode === 'ai') {
+        if (isAiMode()) {
           statusEl.textContent = current === playerMark ? 'You win! 🎉' : 'AI wins';
         } else {
           statusEl.textContent = `${current} wins!`;
@@ -424,11 +435,11 @@
         statusEl.textContent = "It's a draw!";
       } else {
         current = current === 'X' ? 'O' : 'X';
-        if (mode === 'ai' && current === aiMark) {
+        if (isAiMode() && current === aiMark) {
           locked = true;
           render();
           updateStatus();
-          setTimeout(doAiMove, 600);
+          setTimeout(doAiMove, AI_DELAY[mode]);
         } else {
           render();
           updateStatus();
@@ -443,13 +454,6 @@
       ) || null;
     }
 
-    function highlight(cells) {
-      document.querySelectorAll('.cell').forEach((el, i) => {
-        if (cells.includes(i)) el.classList.add('win');
-      });
-    }
-
-    // ── AI (minimax) ─────────────────────────────────────────
     function getWinner(b) {
       for (const [a, bi, c] of WINS) {
         if (b[a] && b[a] === b[bi] && b[a] === b[c]) return b[a];
@@ -457,6 +461,49 @@
       return null;
     }
 
+    function highlight(cells) {
+      document.querySelectorAll('.cell').forEach((el, i) => {
+        if (cells.includes(i)) el.classList.add('win');
+      });
+    }
+
+    // ── AI moves ─────────────────────────────────────────────
+    function emptySquares() {
+      return board.map((v, i) => v ? null : i).filter(i => i !== null);
+    }
+
+    // Rookie: completely random — makes no strategic decisions
+    function getRookieMove() {
+      const empty = emptySquares();
+      return empty[Math.floor(Math.random() * empty.length)];
+    }
+
+    // Normal: takes wins and blocks losses, but plays randomly otherwise
+    function getNormalMove() {
+      // Take a winning move if available
+      for (let i = 0; i < 9; i++) {
+        if (!board[i]) {
+          board[i] = aiMark;
+          const wins = getWinner(board);
+          board[i] = null;
+          if (wins) return i;
+        }
+      }
+      // Block the player from winning
+      for (let i = 0; i < 9; i++) {
+        if (!board[i]) {
+          board[i] = playerMark;
+          const wins = getWinner(board);
+          board[i] = null;
+          if (wins) return i;
+        }
+      }
+      // Otherwise random
+      const empty = emptySquares();
+      return empty[Math.floor(Math.random() * empty.length)];
+    }
+
+    // Expert: minimax — never loses
     function minimax(b, depth, isMax) {
       const w = getWinner(b);
       if (w === aiMark)     return 10 - depth;
@@ -486,7 +533,7 @@
       }
     }
 
-    function getBestMove() {
+    function getExpertMove() {
       let bestVal = -Infinity, bestMove = -1;
       for (let i = 0; i < 9; i++) {
         if (!board[i]) {
@@ -501,7 +548,10 @@
 
     function doAiMove() {
       if (gameOver || current !== aiMark) return;
-      board[getBestMove()] = aiMark;
+      const move = mode === 'rookie' ? getRookieMove()
+                 : mode === 'normal' ? getNormalMove()
+                 : getExpertMove();
+      board[move] = aiMark;
       locked = false;
       afterMove();
     }
