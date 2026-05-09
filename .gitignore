@@ -1,0 +1,5 @@
+# Cosmic Canyon lives in its own repo (github.com/Govand2323/cosmic-canyon)
+game/
+
+# Claude local settings
+.claude/settings.local.json

@@ -1,0 +1,687 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:           #0F0F0F;
+  --sidebar-bg:   #111111;
+  --surface:      #1C1C1C;
+  --surface2:     #242424;
+  --orange:       #F97316;
+  --orange-h:     #EA580C;
+  --orange-dim:   rgba(249, 115, 22, 0.14);
+  --orange-glow:  rgba(249, 115, 22, 0.28);
+  --text:         #FFFFFF;
+  --muted:        #9CA3AF;
+  --border:       rgba(255, 255, 255, 0.06);
+  --sidebar-w:    68px;
+  --header-h:     56px;
+  --radius:       8px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ─────────────────────────────────────────── */
+
+.layout {
+  min-height: 100vh;
+}
+
+/* ── Sidebar ─────────────────────────────────────────── */
+
+.sidebar {
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  width: var(--sidebar-w);
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 200;
+}
+
+.sidebar-logo-wrap {
+  width: var(--sidebar-w);
+  height: var(--sidebar-w);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.sidebar-logo-wrap img {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 0;
+  gap: 0.2rem;
+  flex: 1;
+}
+
+.sidebar-btn {
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+  font-size: 1.25rem;
+  position: relative;
+}
+
+.sidebar-btn:hover,
+.sidebar-btn.active {
+  background: var(--orange-dim);
+  color: var(--orange);
+}
+
+/* tooltip on hover */
+.sidebar-btn::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--surface2);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 0.3rem 0.6rem;
+  border-radius: 5px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  border: 1px solid var(--border);
+}
+
+.sidebar-btn:hover::after { opacity: 1; }
+
+/* ── Main area ───────────────────────────────────────── */
+
+.main {
+  margin-left: var(--sidebar-w);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+
+.top-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--header-h);
+  background: rgba(15, 15, 15, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  gap: 1rem;
+}
+
+.site-name {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.site-name span { color: var(--orange); }
+
+.search-wrap {
+  flex: 1;
+  max-width: 440px;
+  position: relative;
+}
+
+.search-wrap svg {
+  position: absolute;
+  left: 0.7rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  width: 15px;
+  height: 15px;
+  pointer-events: none;
+}
+
+.search-wrap input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  padding: 0.48rem 0.75rem 0.48rem 2.2rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-wrap input::placeholder { color: var(--muted); }
+.search-wrap input:focus { border-color: rgba(249,115,22,0.45); }
+
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.header-right a {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.header-right a:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+
+/* back button variant */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0.38rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  transition: color 0.2s, border-color 0.2s;
+}
+.back-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+
+/* ── Content ─────────────────────────────────────────── */
+
+.content {
+  flex: 1;
+  padding: 1.5rem;
+}
+
+/* ── Shelf ───────────────────────────────────────────── */
+
+.shelf { margin-bottom: 2.5rem; }
+
+.shelf-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.shelf-header h2 {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+
+.shelf-header .shelf-icon { font-size: 1rem; }
+
+/* ── Hero shelf (Top Picks) ──────────────────────────── */
+
+.hero-shelf-grid {
+  display: grid;
+  grid-template-columns: 44% 1fr;
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.small-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+/* ── Game Card ───────────────────────────────────────── */
+
+.game-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+  text-decoration: none;
+  color: var(--text);
+  display: block;
+  border: 2px solid transparent;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.game-card:not(.coming-soon):hover {
+  border-color: var(--orange);
+  transform: scale(1.025);
+  box-shadow: 0 6px 24px var(--orange-glow);
+}
+
+.game-card.coming-soon {
+  filter: grayscale(0.65);
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Thumbnail */
+.card-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-thumb.space {
+  background: linear-gradient(135deg, #18082e 0%, #080c1c 100%);
+}
+
+.card-thumb.teal {
+  background: linear-gradient(135deg, #04222e 0%, #080e1c 100%);
+}
+
+.card-thumb.dark1 {
+  background: linear-gradient(135deg, #1a1008 0%, #0a0808 100%);
+}
+
+.card-thumb.dark2 {
+  background: linear-gradient(135deg, #0a1a10 0%, #080a08 100%);
+}
+
+.card-thumb.dark3 {
+  background: linear-gradient(135deg, #180808 0%, #0a0808 100%);
+}
+
+.card-thumb.dark4 {
+  background: linear-gradient(135deg, #08101a 0%, #080808 100%);
+}
+
+.card-thumb img,
+.mini-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.thumb-icon {
+  font-size: 2.6rem;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+}
+
+/* Hero card — taller thumbnail */
+.game-card.hero .card-thumb {
+  aspect-ratio: unset;
+  height: 280px;
+}
+
+.game-card.hero .thumb-icon { font-size: 5rem; }
+
+/* Lock overlay */
+.lock-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  background: rgba(0,0,0,0.15);
+  z-index: 2;
+}
+
+/* Card info strip */
+.card-info {
+  padding: 0.5rem 0.6rem 0.55rem;
+}
+
+.card-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-tag {
+  display: inline-block;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.13rem 0.42rem;
+  border-radius: 3px;
+}
+
+.card-tag.shooter  { background: var(--orange-dim); color: var(--orange); }
+.card-tag.puzzle   { background: rgba(34,211,238,0.1); color: #22D3EE; }
+.card-tag.strategy { background: rgba(251,191,36,0.1); color: #FBBF24; }
+.card-tag.locked   { background: rgba(156,163,175,0.1); color: var(--muted); }
+
+/* ── Games grid (All Games shelf) ───────────────────── */
+
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0.65rem;
+}
+
+/* ── Ad slots ────────────────────────────────────────── */
+
+.ad-banner {
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.ad-slot {
+  background: var(--surface);
+  border: 1px dashed rgba(255,255,255,0.07);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ad-slot.leaderboard { width: 728px; max-width: 100%; height: 90px; }
+.ad-slot.rectangle   { width: 300px; height: 250px; flex-shrink: 0; }
+
+/* ── Game page ───────────────────────────────────────── */
+
+.game-page-content { padding: 1rem 1.5rem 2rem; }
+
+.game-page-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.game-page-title h1 {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.game-layout {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.game-frame-wrap {
+  flex: 1;
+  min-width: 0;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  aspect-ratio: 16 / 9;
+}
+
+.game-frame-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.game-sidebar-ads {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ── Sidebar: Other Games ────────────────────────────── */
+
+.sidebar-section { width: 300px; }
+
+.sidebar-section .shelf-header { margin-bottom: 0.6rem; }
+
+.mini-card {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: var(--surface);
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text);
+  border: 2px solid transparent;
+  padding: 0.4rem;
+  margin-bottom: 0.45rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.mini-card:last-child { margin-bottom: 0; }
+
+.mini-card:not(.coming-soon):hover { border-color: var(--orange); }
+
+.mini-card.coming-soon { opacity: 0.45; cursor: default; }
+
+.mini-thumb {
+  width: 64px;
+  height: 48px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.mini-info { flex: 1; min-width: 0; }
+
+.mini-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.15rem;
+}
+
+/* ── Game page: Bottom shelf ─────────────────────────── */
+
+.game-page-shelf {
+  padding: 0 1.5rem 2.5rem;
+}
+
+.game-page-shelf .shelf-header { margin-bottom: 0.9rem; }
+
+/* ── About ───────────────────────────────────────────── */
+
+.about-game {
+  padding: 0.5rem 1.5rem 2rem;
+}
+
+.about-game h2 {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem;
+}
+
+.about-game p {
+  color: var(--muted);
+  font-size: 0.87rem;
+  line-height: 1.75;
+  max-width: 700px;
+}
+
+/* ── Controls section ───────────────────────────────── */
+
+.game-controls {
+  padding: 0 1.5rem 2rem;
+}
+
+.game-controls h2 {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 0.75rem;
+}
+
+.controls-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.8rem;
+}
+
+.control-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+kbd {
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.73rem;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.game-controls > p {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.75;
+  max-width: 700px;
+}
+
+/* ── Footer ─────────────────────────────────────────── */
+
+footer {
+  border-top: 1px solid var(--border);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.77rem;
+}
+
+footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+footer a:hover { color: var(--text); }
+.footer-links { display: flex; gap: 1.2rem; }
+
+/* ── Privacy page ────────────────────────────────────── */
+
+.policy-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 5rem;
+}
+
+.policy-page h1 {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+
+.policy-page .updated {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin-bottom: 2rem;
+}
+
+.policy-page h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.8rem 0 0.45rem;
+}
+
+.policy-page p, .policy-page li {
+  color: var(--muted);
+  font-size: 0.87rem;
+  line-height: 1.8;
+}
+
+.policy-page ul { padding-left: 1.4rem; margin: 0.4rem 0; }
+.policy-page a { color: var(--orange); }
+
+/* ── Responsive ──────────────────────────────────────── */
+
+@media (max-width: 960px) {
+  .hero-shelf-grid { grid-template-columns: 1fr; }
+  .small-card-grid {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: auto;
+  }
+  .game-card.hero .card-thumb { height: 200px; }
+}
+
+@media (max-width: 700px) {
+  :root { --sidebar-w: 0px; }
+  .sidebar { display: none; }
+  .main { margin-left: 0; }
+  .small-card-grid { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+  .game-layout { flex-direction: column; }
+  .ad-slot.rectangle { width: 100%; height: 100px; }
+  .content, .game-page-content, .about-game, .ad-banner { padding-left: 1rem; padding-right: 1rem; }
+}
+
+@media (max-width: 480px) {
+  .search-wrap { display: none; }
+  .games-grid { grid-template-columns: 1fr 1fr; }
+}
