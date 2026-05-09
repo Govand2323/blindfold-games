@@ -19,6 +19,67 @@
       color: #eee;
     }
 
+    /* ── Mode selection overlay ───────────────────────────── */
+    #mode-screen {
+      position: fixed;
+      inset: 0;
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(1rem, 2.5vh, 2rem);
+      z-index: 100;
+    }
+
+    #mode-screen .ms-title {
+      font-size: clamp(1.4rem, 4vw, 2.8rem);
+      letter-spacing: 0.12em;
+      color: #e94560;
+      text-transform: uppercase;
+      text-align: center;
+      line-height: 1.1;
+    }
+
+    #mode-screen .ms-sub {
+      font-size: clamp(0.75rem, 1.5vw, 0.95rem);
+      color: #7a7a90;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+
+    .mode-btn {
+      padding: clamp(0.55rem, 1.6vh, 0.9rem) clamp(1.5rem, 5vw, 3rem);
+      font-size: clamp(0.8rem, 1.7vw, 1.05rem);
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      border: 2px solid;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.18s;
+      text-transform: uppercase;
+      background: transparent;
+      min-width: clamp(170px, 28vw, 240px);
+    }
+
+    .mode-btn.vs-ai {
+      border-color: #e94560;
+      color: #e94560;
+    }
+    .mode-btn.vs-ai:hover {
+      background: #e94560;
+      color: #fff;
+    }
+    .mode-btn.vs-player {
+      border-color: #a8dadc;
+      color: #a8dadc;
+    }
+    .mode-btn.vs-player:hover {
+      background: #a8dadc;
+      color: #1a1a2e;
+    }
+
+    /* ── Game layout ──────────────────────────────────────── */
     .game-container {
       display: flex;
       align-items: center;
@@ -33,7 +94,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: clamp(0.6rem, 2vh, 1.8rem);
+      gap: clamp(0.55rem, 1.8vh, 1.6rem);
       flex-shrink: 0;
     }
 
@@ -46,14 +107,29 @@
       line-height: 1.15;
     }
 
+    #mode-badge {
+      font-size: clamp(0.58rem, 1vw, 0.72rem);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #7a7a90;
+      margin-top: -0.3rem;
+    }
+
     #status {
-      font-size: clamp(0.75rem, 1.5vw, 1.1rem);
+      font-size: clamp(0.75rem, 1.5vw, 1.05rem);
       min-height: 1.4em;
       color: #a8dadc;
       font-weight: 600;
       letter-spacing: 0.05em;
       text-align: center;
     }
+
+    #status.ai-turn {
+      color: #f4a261;
+      animation: blink 0.9s step-start infinite;
+    }
+
+    @keyframes blink { 50% { opacity: 0.35; } }
 
     #score {
       display: flex;
@@ -68,7 +144,7 @@
     }
 
     .score-item .label {
-      font-size: clamp(0.6rem, 1.1vw, 0.78rem);
+      font-size: clamp(0.58rem, 1.1vw, 0.75rem);
       letter-spacing: 0.1em;
       color: #a0a0b0;
       text-transform: uppercase;
@@ -79,13 +155,13 @@
       font-size: clamp(1.2rem, 2.5vw, 1.8rem);
     }
 
-    .score-item.x-score    .val { color: #e94560; }
-    .score-item.o-score    .val { color: #a8dadc; }
-    .score-item.draw-score .val { color: #f4a261; }
+    .score-item.left-score  .val { color: #e94560; }
+    .score-item.right-score .val { color: #a8dadc; }
+    .score-item.draw-score  .val { color: #f4a261; }
 
     #restart {
-      padding: clamp(0.35rem, 1.2vh, 0.7rem) clamp(0.9rem, 3vw, 2.2rem);
-      font-size: clamp(0.7rem, 1.3vw, 0.95rem);
+      padding: clamp(0.35rem, 1.2vh, 0.65rem) clamp(0.9rem, 3vw, 2rem);
+      font-size: clamp(0.68rem, 1.3vw, 0.92rem);
       font-weight: 700;
       letter-spacing: 0.08em;
       background: #e94560;
@@ -96,9 +172,24 @@
       transition: background 0.2s, transform 0.1s;
       text-transform: uppercase;
     }
-
     #restart:hover { background: #c73652; transform: scale(1.04); }
 
+    #change-mode {
+      font-size: clamp(0.58rem, 1.05vw, 0.72rem);
+      color: #7a7a90;
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.06em;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      transition: color 0.15s;
+      padding: 0;
+      text-transform: uppercase;
+    }
+    #change-mode:hover { color: #bbb; }
+
+    /* ── Board ────────────────────────────────────────────── */
     #board {
       --board-size: min(82vh, 46vw);
       width: var(--board-size);
@@ -123,10 +214,12 @@
       user-select: none;
     }
 
-    .cell:hover:not(.taken) {
+    .cell:hover:not(.taken):not(.locked) {
       background: #0f3460;
       transform: scale(1.05);
     }
+
+    .cell.locked { cursor: not-allowed; }
 
     .cell.x { color: #e94560; }
     .cell.o { color: #a8dadc; }
@@ -144,25 +237,37 @@
   </style>
 </head>
 <body>
+
+  <!-- Mode selection overlay -->
+  <div id="mode-screen">
+    <div class="ms-title">Tic Tac Toe</div>
+    <div class="ms-sub">Choose how to play</div>
+    <button class="mode-btn vs-ai" id="btn-ai">Play vs AI</button>
+    <button class="mode-btn vs-player" id="btn-pvp">Play vs Player</button>
+  </div>
+
+  <!-- Game screen -->
   <div class="game-container">
     <div class="info-panel">
       <h1>Tic<br>Tac<br>Toe</h1>
-      <div id="status">X's turn</div>
+      <div id="mode-badge"></div>
+      <div id="status"></div>
       <div id="score">
-        <div class="score-item x-score">
-          <span class="label">X</span>
-          <span class="val" id="x-count">0</span>
+        <div class="score-item left-score">
+          <span class="label" id="label-left">X</span>
+          <span class="val" id="score-left">0</span>
         </div>
         <div class="score-item draw-score">
           <span class="label">Draw</span>
-          <span class="val" id="d-count">0</span>
+          <span class="val" id="score-draw">0</span>
         </div>
-        <div class="score-item o-score">
-          <span class="label">O</span>
-          <span class="val" id="o-count">0</span>
+        <div class="score-item right-score">
+          <span class="label" id="label-right">O</span>
+          <span class="val" id="score-right">0</span>
         </div>
       </div>
       <button id="restart">New Game</button>
+      <button id="change-mode">Change Mode</button>
     </div>
 
     <div id="board"></div>
@@ -175,54 +280,163 @@
       [0,4,8],[2,4,6]
     ];
 
-    let board, current, gameOver, scores;
+    // ── State ────────────────────────────────────────────────
+    let board, current, gameOver, locked;
+    let mode = null;          // 'pvp' | 'ai'
+    let playerMark = null;    // 'X' | 'O' (AI mode only)
+    let aiMark = null;
+    let scores = { left: 0, right: 0, D: 0 };
+    // In PvP:  left=X wins,      right=O wins
+    // In AI:   left=player wins, right=AI wins
 
-    function init() {
-      board = Array(9).fill(null);
-      current = 'X';
-      gameOver = false;
-      scores = scores || { X: 0, O: 0, D: 0 };
-      render();
-      setStatus(`${current}'s turn`);
+    // ── Mode screen ──────────────────────────────────────────
+    document.getElementById('btn-ai').addEventListener('click',  () => startGame('ai'));
+    document.getElementById('btn-pvp').addEventListener('click', () => startGame('pvp'));
+
+    function showModeScreen() {
+      document.getElementById('mode-screen').style.display = 'flex';
+    }
+    function hideModeScreen() {
+      document.getElementById('mode-screen').style.display = 'none';
     }
 
+    function startGame(selectedMode) {
+      mode = selectedMode;
+      scores = { left: 0, right: 0, D: 0 };
+      hideModeScreen();
+      init();
+    }
+
+    // ── Init ─────────────────────────────────────────────────
+    function init() {
+      board    = Array(9).fill(null);
+      gameOver = false;
+      locked   = false;
+
+      if (mode === 'ai') {
+        playerMark = Math.random() < 0.5 ? 'X' : 'O';
+        aiMark     = playerMark === 'X' ? 'O' : 'X';
+        current    = Math.random() < 0.5 ? 'X' : 'O';
+      } else {
+        playerMark = null;
+        aiMark     = null;
+        current    = 'X';
+      }
+
+      updateLabels();
+      render();
+      updateStatus();
+
+      if (mode === 'ai' && current === aiMark) {
+        locked = true;
+        render();
+        setTimeout(doAiMove, 700);
+      }
+    }
+
+    // ── Labels & badge ───────────────────────────────────────
+    function updateLabels() {
+      const badge = document.getElementById('mode-badge');
+      if (mode === 'ai') {
+        badge.textContent = `vs AI  ·  You: ${playerMark}  AI: ${aiMark}`;
+        document.getElementById('label-left').textContent  = 'You';
+        document.getElementById('label-right').textContent = 'AI';
+      } else {
+        badge.textContent = 'vs Player';
+        document.getElementById('label-left').textContent  = 'X';
+        document.getElementById('label-right').textContent = 'O';
+      }
+    }
+
+    // ── Status ───────────────────────────────────────────────
+    function updateStatus() {
+      const el = document.getElementById('status');
+      el.classList.remove('ai-turn');
+      if (mode === 'ai') {
+        if (current === aiMark) {
+          el.textContent = 'AI thinking…';
+          el.classList.add('ai-turn');
+        } else {
+          el.textContent = `Your turn  (${playerMark})`;
+        }
+      } else {
+        el.textContent = `${current}'s turn`;
+      }
+    }
+
+    // ── Render ───────────────────────────────────────────────
     function render() {
       const el = document.getElementById('board');
       el.innerHTML = '';
       board.forEach((val, i) => {
         const cell = document.createElement('div');
-        cell.className = 'cell' + (val ? ` ${val.toLowerCase()} taken` : '');
+        const isLocked = (locked || gameOver) && !val;
+        cell.className = 'cell'
+          + (val ? ` ${val.toLowerCase()} taken` : '')
+          + (isLocked ? ' locked' : '');
         cell.textContent = val || '';
         cell.addEventListener('click', () => move(i));
         el.appendChild(cell);
       });
-      document.getElementById('x-count').textContent = scores.X;
-      document.getElementById('o-count').textContent = scores.O;
-      document.getElementById('d-count').textContent = scores.D;
+      document.getElementById('score-left').textContent  = scores.left;
+      document.getElementById('score-right').textContent = scores.right;
+      document.getElementById('score-draw').textContent  = scores.D;
     }
 
+    // ── Player move ──────────────────────────────────────────
     function move(i) {
-      if (gameOver || board[i]) return;
+      if (gameOver || locked || board[i]) return;
+      if (mode === 'ai' && current === aiMark) return;
       board[i] = current;
+      afterMove();
+    }
+
+    // ── After any move ───────────────────────────────────────
+    function afterMove() {
       const win = checkWin();
       if (win) {
-        scores[current]++;
+        // Update scores by role
+        if (mode === 'ai') {
+          if (current === playerMark) scores.left++;
+          else scores.right++;
+        } else {
+          if (current === 'X') scores.left++;
+          else scores.right++;
+        }
         gameOver = true;
+        locked   = false;
         render();
         highlight(win);
-        setStatus(`${current} wins!`);
+        const statusEl = document.getElementById('status');
+        statusEl.classList.remove('ai-turn');
+        if (mode === 'ai') {
+          statusEl.textContent = current === playerMark ? 'You win! 🎉' : 'AI wins';
+        } else {
+          statusEl.textContent = `${current} wins!`;
+        }
       } else if (board.every(Boolean)) {
         scores.D++;
         gameOver = true;
+        locked   = false;
         render();
-        setStatus("It's a draw!");
+        const statusEl = document.getElementById('status');
+        statusEl.classList.remove('ai-turn');
+        statusEl.textContent = "It's a draw!";
       } else {
         current = current === 'X' ? 'O' : 'X';
-        render();
-        setStatus(`${current}'s turn`);
+        if (mode === 'ai' && current === aiMark) {
+          locked = true;
+          render();
+          updateStatus();
+          setTimeout(doAiMove, 600);
+        } else {
+          render();
+          updateStatus();
+        }
       }
     }
 
+    // ── Win check ────────────────────────────────────────────
     function checkWin() {
       return WINS.find(([a, b, c]) =>
         board[a] && board[a] === board[b] && board[a] === board[c]
@@ -230,17 +444,75 @@
     }
 
     function highlight(cells) {
-      const els = document.querySelectorAll('.cell');
-      cells.forEach(i => els[i].classList.add('win'));
+      document.querySelectorAll('.cell').forEach((el, i) => {
+        if (cells.includes(i)) el.classList.add('win');
+      });
     }
 
-    function setStatus(msg) {
-      document.getElementById('status').textContent = msg;
+    // ── AI (minimax) ─────────────────────────────────────────
+    function getWinner(b) {
+      for (const [a, bi, c] of WINS) {
+        if (b[a] && b[a] === b[bi] && b[a] === b[c]) return b[a];
+      }
+      return null;
     }
 
+    function minimax(b, depth, isMax) {
+      const w = getWinner(b);
+      if (w === aiMark)     return 10 - depth;
+      if (w === playerMark) return depth - 10;
+      if (b.every(Boolean)) return 0;
+
+      if (isMax) {
+        let best = -Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (!b[i]) {
+            b[i] = aiMark;
+            best = Math.max(best, minimax(b, depth + 1, false));
+            b[i] = null;
+          }
+        }
+        return best;
+      } else {
+        let best = Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (!b[i]) {
+            b[i] = playerMark;
+            best = Math.min(best, minimax(b, depth + 1, true));
+            b[i] = null;
+          }
+        }
+        return best;
+      }
+    }
+
+    function getBestMove() {
+      let bestVal = -Infinity, bestMove = -1;
+      for (let i = 0; i < 9; i++) {
+        if (!board[i]) {
+          board[i] = aiMark;
+          const val = minimax(board, 0, false);
+          board[i] = null;
+          if (val > bestVal) { bestVal = val; bestMove = i; }
+        }
+      }
+      return bestMove;
+    }
+
+    function doAiMove() {
+      if (gameOver || current !== aiMark) return;
+      board[getBestMove()] = aiMark;
+      locked = false;
+      afterMove();
+    }
+
+    // ── Buttons ──────────────────────────────────────────────
     document.getElementById('restart').addEventListener('click', init);
 
-    init();
+    document.getElementById('change-mode').addEventListener('click', () => {
+      mode = null;
+      showModeScreen();
+    });
   </script>
 </body>
 </html>
