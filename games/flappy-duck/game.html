@@ -23,11 +23,12 @@
   const GRAVITY = 0.46;
   const FLAP_VEL = -8.2;
   const DUCK_X = 120;
-  const DUCK_HIT_R = 11;
+  const DUCK_HIT_R = 9;          // slightly smaller for better playability
   const PIPE_W = 54;
   const PIPE_GAP = 118;
   const PIPE_SPEED = 2.5;
   const PIPE_INTERVAL = 130;
+  const EGG_DURATION_F = 300;    // frames a golden egg stays alive (~5s)
 
   // ── Canvas ──────────────────────────────────────────────────
   const canvas = document.getElementById('c');
@@ -47,26 +48,36 @@
   let phase, startPulse, bobTimer;
   let duckY, duckVY, duckAngle;
   let pipes, pipeTimer;
+  let collectibles, eggTimer, eggPulse;
+  let floaters;
   let score, highScore = 0;
   let groundOffset, deathFlash;
 
   function initGame(skipStart = false) {
-    duckY       = GAME_TOP + (GAME_BOT - GAME_TOP) / 2;
-    duckVY      = 0;
-    duckAngle   = 0;
-    pipes       = [];
-    pipeTimer   = 75;
-    score       = 0;
+    duckY        = 160;           // sync with start-screen bob center
+    duckVY       = 0;
+    duckAngle    = 0;
+    pipes        = [];
+    pipeTimer    = 75;
+    collectibles = [];
+    eggTimer     = 0;
+    eggPulse     = 0;
+    floaters     = [];
+    score        = 0;
     groundOffset = 0;
-    deathFlash  = 0;
-    phase       = skipStart ? 'playing' : 'start';
-    startPulse  = 0;
-    bobTimer    = 0;
+    deathFlash   = 0;
+    phase        = skipStart ? 'playing' : 'start';
+    startPulse   = 0;
+    bobTimer     = 0;
   }
 
   // ── Input ───────────────────────────────────────────────────
   function flap() {
-    if (phase === 'start')    { phase = 'playing'; duckVY = FLAP_VEL; return; }
+    if (phase === 'start') {
+      phase = 'playing';
+      duckVY = FLAP_VEL;   // first click counts as a flap — duck goes up
+      return;
+    }
     if (phase === 'gameover') { initGame(true); return; }
     if (phase === 'playing')  { duckVY = FLAP_VEL; }
   }
@@ -83,10 +94,14 @@
   // ── Helpers ─────────────────────────────────────────────────
   function spawnPipe() {
     const margin = 62;
-    const minGapY = GAME_TOP + margin;
-    const maxGapY = GAME_BOT - margin;
-    const gapY = minGapY + Math.random() * (maxGapY - minGapY);
+    const gapY = GAME_TOP + margin + Math.random() * (GAME_BOT - GAME_TOP - margin * 2);
     pipes.push({ x: W + PIPE_W / 2, gapY, scored: false });
+
+    // 28% chance to place a coin inside the gap
+    if (Math.random() < 0.28) {
+      const coinY = gapY + (Math.random() * 50 - 25);
+      collectibles.push({ x: W + PIPE_W, y: coinY, type: 'coin' });
+    }
   }
 
   function circleRect(cx, cy, r, rx, ry, rw, rh) {
@@ -101,6 +116,7 @@
     ctx.globalAlpha = alpha;
     ctx.translate(cx, cy);
     ctx.rotate(angle);
+    ctx.scale(0.82, 0.82);       // slightly smaller duck
 
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.18)';
@@ -176,6 +192,50 @@
     ctx.fillRect(capX + 3, botY + 2, capW - 6, capH - 4);
   }
 
+  function drawCollectibles() {
+    for (const c of collectibles) {
+      if (c.type === 'coin') {
+        // Golden coin
+        ctx.save();
+        ctx.shadowColor = '#FCD34D'; ctx.shadowBlur = 6;
+        ctx.fillStyle = '#FCD34D';
+        ctx.beginPath(); ctx.arc(c.x, c.y, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+        ctx.strokeStyle = '#F59E0B'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(c.x, c.y, 8, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#92400E';
+        ctx.font = 'bold 8px monospace';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('$', c.x, c.y + 0.5);
+        ctx.restore();
+      } else if (c.type === 'egg') {
+        // Golden egg with countdown ring
+        const pFrac = c.ms / EGG_DURATION_F;
+        ctx.save();
+        // Glow
+        const grd = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, 17);
+        grd.addColorStop(0, `rgba(251,191,36,${0.35 + 0.2 * Math.sin(eggPulse)})`);
+        grd.addColorStop(1, 'rgba(251,191,36,0)');
+        ctx.beginPath(); ctx.arc(c.x, c.y, 17, 0, Math.PI * 2);
+        ctx.fillStyle = grd; ctx.fill();
+        // Egg body
+        ctx.fillStyle = '#FCD34D';
+        ctx.shadowColor = '#FBBF24'; ctx.shadowBlur = 5;
+        ctx.beginPath(); ctx.ellipse(c.x, c.y, 8, 11, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+        // Sheen
+        ctx.fillStyle = 'rgba(255,255,255,0.38)';
+        ctx.beginPath(); ctx.ellipse(c.x - 2, c.y - 3, 3, 4, -0.3, 0, Math.PI * 2); ctx.fill();
+        // Countdown ring
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, 14, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pFrac);
+        ctx.strokeStyle = pFrac > 0.4 ? '#FBBF24' : '#F97316';
+        ctx.lineWidth = 2.5; ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
+
   // ── Update ──────────────────────────────────────────────────
   function update() {
     // Duck physics
@@ -212,8 +272,45 @@
         circleRect(DUCK_X, duckY, DUCK_HIT_R, p.x, botY, PIPE_W, GAME_BOT - botY)
       ) { die(); return; }
     }
-
     pipes = pipes.filter(p => p.x + PIPE_W > -20);
+
+    // Rare golden egg spawning (~every 17 seconds on average)
+    eggTimer++;
+    if (eggTimer >= 200) {
+      eggTimer = 0;
+      if (Math.random() < 0.18) {
+        const margin = 50;
+        const y = GAME_TOP + margin + Math.random() * (GAME_BOT - GAME_TOP - margin * 2);
+        collectibles.push({ x: W + 20, y, type: 'egg', ms: EGG_DURATION_F });
+      }
+    }
+    eggPulse += 0.12;
+
+    // Move & collect
+    const toRemove = new Set();
+    for (let i = 0; i < collectibles.length; i++) {
+      const c = collectibles[i];
+      c.x -= PIPE_SPEED;
+      if (c.ms !== undefined) c.ms -= 1;
+
+      const cr = c.type === 'egg' ? 12 : 10;
+      const dx = c.x - DUCK_X, dy = c.y - duckY;
+      if (dx * dx + dy * dy < (DUCK_HIT_R + cr) ** 2) {
+        const pts = c.type === 'egg' ? 25 : 5;
+        score += pts;
+        if (score > highScore) highScore = score;
+        floaters.push({ x: c.x, y: c.y, text: '+' + pts, alpha: 1.0 });
+        toRemove.add(i);
+      } else if (c.x + 20 < 0 || (c.ms !== undefined && c.ms <= 0)) {
+        toRemove.add(i);
+      }
+    }
+    collectibles = collectibles.filter((_, i) => !toRemove.has(i));
+
+    // Floaters
+    for (const f of floaters) { f.y -= 1.2; f.alpha -= 0.022; }
+    floaters = floaters.filter(f => f.alpha > 0);
+
     if (deathFlash > 0) deathFlash--;
   }
 
@@ -240,9 +337,7 @@
     ];
     for (const [sx, sy] of pts) {
       const ay = yOffset + sy * ((GAME_BOT - GAME_TOP) / 160);
-      if (ay > GAME_TOP && ay < GAME_BOT) {
-        ctx.fillRect(sx, ay, 1.5, 1.5);
-      }
+      if (ay > GAME_TOP && ay < GAME_BOT) ctx.fillRect(sx, ay, 1.5, 1.5);
     }
   }
 
@@ -270,7 +365,21 @@
       drawPipe(p.x, topH, botY);
     }
 
+    drawCollectibles();
+
     if (deathFlash % 2 === 0) drawDuck(DUCK_X, duckY, duckAngle);
+
+    // Floater score popups
+    for (const f of floaters) {
+      ctx.save();
+      ctx.globalAlpha = f.alpha;
+      ctx.font = 'bold 13px monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = f.text === '+25' ? '#FCD34D' : '#FBBF24';
+      ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 4;
+      ctx.fillText(f.text, f.x, f.y);
+      ctx.restore();
+    }
 
     // HUD
     ctx.fillStyle = 'rgba(5,5,5,0.93)';
@@ -315,7 +424,6 @@
   function renderStartScreen() {
     drawSky(0, H);
 
-    // Stars across full canvas
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
     const pts = [
       [48,18],[115,38],[198,14],[274,35],[390,22],[472,12],[548,30],[612,48],
@@ -338,7 +446,7 @@
     ctx.fillText('FLAPPY DUCK', W / 2, 60);
     ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
 
-    // Animated duck
+    // Animated duck — bob center matches duckY start position (160)
     const bobY = 160 + Math.sin(bobTimer * 0.055) * 13;
     const bobA = Math.sin(bobTimer * 0.055) * 0.15;
     drawDuck(W / 2, bobY, bobA);
