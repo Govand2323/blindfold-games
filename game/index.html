@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Cosmic Canyon</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -20,13 +20,239 @@
       image-rendering: crisp-edges;
       cursor: crosshair;
     }
+
+    /* ── Mobile controls (touch devices only) ────────────── */
+    #mc { display: none; }
+
+    @media (pointer: coarse) {
+      #mc { display: block; }
+      #gameCanvas { touch-action: none; cursor: none; }
+    }
+
+    #mc-left, #mc-right {
+      position: fixed;
+      z-index: 50;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    #mc-joy-ring {
+      position: fixed;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.05);
+      pointer-events: none;
+      z-index: 51;
+      transform: translate(-50%, -50%);
+      display: none;
+    }
+
+    #mc-joy-dot {
+      position: fixed;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.4);
+      border: 2px solid rgba(255,255,255,0.85);
+      pointer-events: none;
+      z-index: 52;
+      transform: translate(-50%, -50%);
+      display: none;
+    }
+
+    #mc-fire-btn {
+      position: fixed;
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      background: rgba(255,56,96,0.3);
+      border: 3px solid rgba(255,56,96,0.7);
+      color: rgba(255,255,255,0.85);
+      font-family: sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 51;
+      transition: background 0.08s;
+    }
+
+    #mc-fire-btn.active {
+      background: rgba(255,56,96,0.65);
+      border-color: rgba(255,56,96,1);
+    }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
+
+  <!-- Mobile controls overlay -->
+  <div id="mc">
+    <div id="mc-left"></div>
+    <div id="mc-right"></div>
+    <div id="mc-joy-ring"></div>
+    <div id="mc-joy-dot"></div>
+    <div id="mc-fire-btn">FIRE</div>
+  </div>
+
   <script src="js/core.js"></script>
   <script src="js/renderer.js"></script>
   <script src="js/particles.js"></script>
   <script src="js/entities.js"></script>
+
+  <script>
+  // Mobile controls — runs after game init() so canvas is sized
+  window.addEventListener('load', function() {
+    if (!window.matchMedia('(pointer: coarse)').matches) return;
+
+    const canvasEl  = document.getElementById('gameCanvas');
+    const mcLeft    = document.getElementById('mc-left');
+    const mcRight   = document.getElementById('mc-right');
+    const joyRing   = document.getElementById('mc-joy-ring');
+    const joyDot    = document.getElementById('mc-joy-dot');
+    const fireBtnEl = document.getElementById('mc-fire-btn');
+
+    const JOY_RADIUS = 48;
+    let joyId = null, joyOriginX = 0, joyOriginY = 0;
+    let fireId = null;
+
+    // Position control zones and fire button over the canvas rect
+    function layout() {
+      const r = canvasEl.getBoundingClientRect();
+      const half   = r.width / 2;
+      const margin = Math.min(r.width * 0.045, 22);
+      const fbSize = 84;
+
+      mcLeft.style.cssText  = `left:${r.left}px;top:${r.top}px;width:${half}px;height:${r.height}px;`;
+      mcRight.style.cssText = `left:${r.left + half}px;top:${r.top}px;width:${half}px;height:${r.height}px;`;
+
+      fireBtnEl.style.display = 'flex';
+      fireBtnEl.style.left    = (r.right  - fbSize - margin) + 'px';
+      fireBtnEl.style.top     = (r.bottom - fbSize - margin) + 'px';
+    }
+    layout();
+    window.addEventListener('resize', layout);
+
+    // Auto-aim: point mouse at nearest enemy each frame so no aim stick is needed
+    ;(function aimLoop() {
+      if (player) {
+        if (enemies && enemies.length > 0) {
+          let nearest = enemies[0], minD = Infinity;
+          for (const e of enemies) {
+            const d = Math.hypot(e.x - player.x, e.y - player.y);
+            if (d < minD) { minD = d; nearest = e; }
+          }
+          mouse.x = nearest.x;
+          mouse.y = nearest.y;
+        } else {
+          // No enemies — face right so the barrel doesn't spin wildly
+          mouse.x = player.x + 100;
+          mouse.y = player.y;
+        }
+      }
+      requestAnimationFrame(aimLoop);
+    })();
+
+    // Map normalized joystick vector to movement keys
+    function setMove(nx, ny, mag) {
+      const t = 0.28;
+      keys['ArrowUp']    = mag > 10 && ny < -t;
+      keys['ArrowDown']  = mag > 10 && ny >  t;
+      keys['ArrowLeft']  = mag > 10 && nx < -t;
+      keys['ArrowRight'] = mag > 10 && nx >  t;
+    }
+    function clearMove() {
+      ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].forEach(k => keys[k] = false);
+    }
+
+    // Trigger the right game-state transition on tap
+    function handleState() {
+      if      (gameState === GAME_STATE.MENU       || gameState === GAME_STATE.GAME_OVER)  startNewGame();
+      else if (gameState === GAME_STATE.LEVEL_COMPLETE) advanceLevel();
+    }
+    function inGame() {
+      return gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.WAVE_START;
+    }
+
+    // ── Left zone: dynamic joystick ────────────────────────
+    mcLeft.addEventListener('touchstart', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (joyId !== null) continue;
+        joyId = t.identifier;
+        joyOriginX = t.clientX;
+        joyOriginY = t.clientY;
+
+        joyRing.style.left    = t.clientX + 'px';
+        joyRing.style.top     = t.clientY + 'px';
+        joyDot.style.left     = t.clientX + 'px';
+        joyDot.style.top      = t.clientY + 'px';
+        joyRing.style.display = 'block';
+        joyDot.style.display  = 'block';
+
+        if (!inGame()) handleState();
+      }
+    }, { passive: false });
+
+    mcLeft.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier !== joyId) continue;
+        const dx  = t.clientX - joyOriginX;
+        const dy  = t.clientY - joyOriginY;
+        const mag = Math.hypot(dx, dy);
+        const nx  = mag > 0 ? dx / mag : 0;
+        const ny  = mag > 0 ? dy / mag : 0;
+        const cap = Math.min(mag, JOY_RADIUS);
+
+        joyDot.style.left = (joyOriginX + nx * cap) + 'px';
+        joyDot.style.top  = (joyOriginY + ny * cap) + 'px';
+        setMove(nx, ny, mag);
+      }
+    }, { passive: false });
+
+    function onLeftEnd(e) {
+      for (const t of e.changedTouches) {
+        if (t.identifier !== joyId) continue;
+        joyId = null;
+        joyRing.style.display = 'none';
+        joyDot.style.display  = 'none';
+        clearMove();
+      }
+    }
+    mcLeft.addEventListener('touchend',    onLeftEnd, { passive: false });
+    mcLeft.addEventListener('touchcancel', onLeftEnd, { passive: false });
+
+    // ── Right zone: fire button ─────────────────────────────
+    mcRight.addEventListener('touchstart', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (fireId !== null) continue;
+        fireId = t.identifier;
+        mouse.down = true;
+        mouse.justPressed = true;
+        fireBtnEl.classList.add('active');
+        if (!inGame()) handleState();
+      }
+    }, { passive: false });
+
+    function onFireEnd(e) {
+      for (const t of e.changedTouches) {
+        if (t.identifier !== fireId) continue;
+        fireId = null;
+        mouse.down = false;
+        fireBtnEl.classList.remove('active');
+      }
+    }
+    mcRight.addEventListener('touchend',    onFireEnd, { passive: false });
+    mcRight.addEventListener('touchcancel', onFireEnd, { passive: false });
+  });
+  </script>
 </body>
 </html>
