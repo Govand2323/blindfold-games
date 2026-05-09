@@ -30,6 +30,13 @@
   </url>
 
   <url>
+    <loc>https://mapwizard.gg/games/flappy-duck/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <lastmod>2026-05-09</lastmod>
+  </url>
+
+  <url>
     <loc>https://mapwizard.gg/privacy-policy.html</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>

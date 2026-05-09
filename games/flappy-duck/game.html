@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Flappy Duck</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+    canvas { display: block; cursor: pointer; touch-action: none; }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // ── Constants ───────────────────────────────────────────────
+  const W = 640, H = 360;
+  const HUD_H = 40;
+  const GROUND_H = 38;
+  const GAME_TOP = HUD_H;
+  const GAME_BOT = H - GROUND_H;
+
+  const GRAVITY = 0.46;
+  const FLAP_VEL = -8.2;
+  const DUCK_X = 120;
+  const DUCK_HIT_R = 11;
+  const PIPE_W = 54;
+  const PIPE_GAP = 118;
+  const PIPE_SPEED = 2.5;
+  const PIPE_INTERVAL = 130;
+
+  // ── Canvas ──────────────────────────────────────────────────
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  function resize() {
+    const scale = Math.min(innerWidth / W, innerHeight / H);
+    canvas.width = W;
+    canvas.height = H;
+    canvas.style.width  = Math.floor(W * scale) + 'px';
+    canvas.style.height = Math.floor(H * scale) + 'px';
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ── State ───────────────────────────────────────────────────
+  let phase, startPulse, bobTimer;
+  let duckY, duckVY, duckAngle;
+  let pipes, pipeTimer;
+  let score, highScore = 0;
+  let groundOffset, deathFlash;
+
+  function initGame(skipStart = false) {
+    duckY       = GAME_TOP + (GAME_BOT - GAME_TOP) / 2;
+    duckVY      = 0;
+    duckAngle   = 0;
+    pipes       = [];
+    pipeTimer   = 75;
+    score       = 0;
+    groundOffset = 0;
+    deathFlash  = 0;
+    phase       = skipStart ? 'playing' : 'start';
+    startPulse  = 0;
+    bobTimer    = 0;
+  }
+
+  // ── Input ───────────────────────────────────────────────────
+  function flap() {
+    if (phase === 'start')    { phase = 'playing'; duckVY = FLAP_VEL; return; }
+    if (phase === 'gameover') { initGame(true); return; }
+    if (phase === 'playing')  { duckVY = FLAP_VEL; }
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' || e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+      e.preventDefault(); flap();
+    }
+    if ((e.key === 'r' || e.key === 'R') && phase === 'gameover') initGame(true);
+  });
+  canvas.addEventListener('click', flap);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); flap(); }, { passive: false });
+
+  // ── Helpers ─────────────────────────────────────────────────
+  function spawnPipe() {
+    const margin = 62;
+    const minGapY = GAME_TOP + margin;
+    const maxGapY = GAME_BOT - margin;
+    const gapY = minGapY + Math.random() * (maxGapY - minGapY);
+    pipes.push({ x: W + PIPE_W / 2, gapY, scored: false });
+  }
+
+  function circleRect(cx, cy, r, rx, ry, rw, rh) {
+    const nx = Math.max(rx, Math.min(cx, rx + rw));
+    const ny = Math.max(ry, Math.min(cy, ry + rh));
+    return (cx - nx) ** 2 + (cy - ny) ** 2 < r * r;
+  }
+
+  // ── Draw helpers ────────────────────────────────────────────
+  function drawDuck(cx, cy, angle, alpha = 1) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.beginPath(); ctx.ellipse(2, 14, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Body
+    ctx.fillStyle = '#FCD34D';
+    ctx.beginPath(); ctx.ellipse(0, 0, 17, 12, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Wing shading
+    ctx.fillStyle = '#F59E0B';
+    ctx.beginPath(); ctx.ellipse(2, 3, 11, 7, 0.15, 0, Math.PI * 2); ctx.fill();
+
+    // Tail
+    ctx.fillStyle = '#F59E0B';
+    ctx.beginPath();
+    ctx.moveTo(-14, -3);
+    ctx.lineTo(-23, -8);
+    ctx.lineTo(-20, 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Head
+    ctx.fillStyle = '#FCD34D';
+    ctx.beginPath(); ctx.arc(13, -8, 10, 0, Math.PI * 2); ctx.fill();
+
+    // Eye
+    ctx.fillStyle = '#1F2937';
+    ctx.beginPath(); ctx.arc(16, -10, 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(17, -11, 1.3, 0, Math.PI * 2); ctx.fill();
+
+    // Beak
+    ctx.fillStyle = '#F97316';
+    ctx.beginPath();
+    ctx.moveTo(21, -9);
+    ctx.lineTo(29, -6);
+    ctx.lineTo(21, -3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#EA580C';
+    ctx.beginPath();
+    ctx.moveTo(21, -6);
+    ctx.lineTo(29, -6);
+    ctx.lineTo(21, -3);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawPipe(x, topH, botY) {
+    const capW = PIPE_W + 8, capH = 16, capX = x - 4;
+
+    // Top pipe
+    ctx.fillStyle = '#15803D';
+    ctx.fillRect(x, GAME_TOP, PIPE_W, topH - capH);
+    ctx.fillStyle = '#166534';
+    ctx.fillRect(capX, GAME_TOP + topH - capH, capW, capH);
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(x + 4, GAME_TOP, 9, topH - capH);
+    ctx.fillStyle = '#16A34A';
+    ctx.fillRect(capX + 3, GAME_TOP + topH - capH + 2, capW - 6, capH - 4);
+
+    // Bottom pipe
+    ctx.fillStyle = '#15803D';
+    ctx.fillRect(x, botY + capH, PIPE_W, GAME_BOT - botY - capH);
+    ctx.fillStyle = '#166534';
+    ctx.fillRect(capX, botY, capW, capH);
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(x + 4, botY + capH, 9, GAME_BOT - botY - capH);
+    ctx.fillStyle = '#16A34A';
+    ctx.fillRect(capX + 3, botY + 2, capW - 6, capH - 4);
+  }
+
+  // ── Update ──────────────────────────────────────────────────
+  function update() {
+    // Duck physics
+    duckVY += GRAVITY;
+    duckY  += duckVY;
+    duckAngle = Math.max(-0.45, Math.min(1.3, duckVY * 0.065));
+
+    // Ground scroll
+    groundOffset = (groundOffset + PIPE_SPEED) % 44;
+
+    // Boundary death
+    if (duckY - DUCK_HIT_R < GAME_TOP || duckY + DUCK_HIT_R > GAME_BOT) {
+      die(); return;
+    }
+
+    // Pipes
+    pipeTimer++;
+    if (pipeTimer >= PIPE_INTERVAL) { pipeTimer = 0; spawnPipe(); }
+
+    for (const p of pipes) {
+      p.x -= PIPE_SPEED;
+
+      if (!p.scored && p.x + PIPE_W / 2 < DUCK_X) {
+        p.scored = true;
+        score++;
+        if (score > highScore) highScore = score;
+      }
+
+      const topH = p.gapY - PIPE_GAP / 2 - GAME_TOP;
+      const botY = p.gapY + PIPE_GAP / 2;
+
+      if (
+        circleRect(DUCK_X, duckY, DUCK_HIT_R, p.x, GAME_TOP, PIPE_W, topH) ||
+        circleRect(DUCK_X, duckY, DUCK_HIT_R, p.x, botY, PIPE_W, GAME_BOT - botY)
+      ) { die(); return; }
+    }
+
+    pipes = pipes.filter(p => p.x + PIPE_W > -20);
+    if (deathFlash > 0) deathFlash--;
+  }
+
+  function die() {
+    phase = 'gameover';
+    deathFlash = 10;
+    duckVY = -3;
+  }
+
+  // ── Render ──────────────────────────────────────────────────
+  function drawSky(y0, y1) {
+    const grad = ctx.createLinearGradient(0, y0, 0, y1);
+    grad.addColorStop(0, '#0D1B2A');
+    grad.addColorStop(1, '#1A3A5C');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, y0, W, y1 - y0);
+  }
+
+  function drawStars(yOffset = 0) {
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    const pts = [
+      [48,18],[115,38],[198,14],[274,35],[390,22],[472,12],[548,30],[612,48],
+      [158,58],[340,48],[514,52],[66,72],[430,68],[580,70],[230,8],[510,28],
+    ];
+    for (const [sx, sy] of pts) {
+      const ay = yOffset + sy * ((GAME_BOT - GAME_TOP) / 160);
+      if (ay > GAME_TOP && ay < GAME_BOT) {
+        ctx.fillRect(sx, ay, 1.5, 1.5);
+      }
+    }
+  }
+
+  function drawGround() {
+    ctx.fillStyle = '#92400E';
+    ctx.fillRect(0, GAME_BOT, W, GROUND_H);
+    ctx.fillStyle = '#6B2D0B';
+    ctx.fillRect(0, GAME_BOT, W, 5);
+    ctx.fillStyle = '#7C3A10';
+    for (let i = 0; i < W + 44; i += 44) {
+      ctx.fillRect(((i - groundOffset + W + 44) % (W + 44)), GAME_BOT + 5, 22, 3);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fillRect(0, GAME_BOT + 5, W, 2);
+  }
+
+  function render() {
+    drawSky(GAME_TOP, GAME_BOT);
+    drawStars(GAME_TOP);
+    drawGround();
+
+    for (const p of pipes) {
+      const topH = p.gapY - PIPE_GAP / 2 - GAME_TOP;
+      const botY = p.gapY + PIPE_GAP / 2;
+      drawPipe(p.x, topH, botY);
+    }
+
+    if (deathFlash % 2 === 0) drawDuck(DUCK_X, duckY, duckAngle);
+
+    // HUD
+    ctx.fillStyle = 'rgba(5,5,5,0.93)';
+    ctx.fillRect(0, 0, W, HUD_H);
+    ctx.strokeStyle = '#15803D'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, HUD_H - 0.5); ctx.lineTo(W, HUD_H - 0.5); ctx.stroke();
+    ctx.font = 'bold 14px monospace';
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('SCORE: ' + score, 14, HUD_H / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#FBBF24';
+    ctx.fillText('BEST: ' + highScore, W - 14, HUD_H / 2);
+
+    // Game Over overlay
+    if (phase === 'gameover') {
+      ctx.fillStyle = 'rgba(0,0,0,0.8)';
+      ctx.fillRect(0, HUD_H, W, H - HUD_H);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = 'bold 52px monospace';
+      ctx.fillStyle = '#F97316';
+      ctx.shadowColor = '#F97316'; ctx.shadowBlur = 14;
+      ctx.fillText('GAME OVER', W / 2, H / 2 - 38);
+      ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+      ctx.font = 'bold 20px monospace';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('SCORE: ' + score, W / 2, H / 2 + 4);
+      if (score > 0 && score >= highScore) {
+        ctx.font = 'bold 13px monospace';
+        ctx.fillStyle = '#FBBF24';
+        ctx.shadowColor = '#FBBF24'; ctx.shadowBlur = 6;
+        ctx.fillText('NEW BEST!', W / 2, H / 2 + 28);
+        ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+      }
+      ctx.font = '12px monospace';
+      ctx.fillStyle = '#6B7280';
+      ctx.fillText('TAP  ·  CLICK  ·  PRESS R  TO  RESTART', W / 2, H / 2 + 56);
+    }
+  }
+
+  // ── Start screen ────────────────────────────────────────────
+  function renderStartScreen() {
+    drawSky(0, H);
+
+    // Stars across full canvas
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    const pts = [
+      [48,18],[115,38],[198,14],[274,35],[390,22],[472,12],[548,30],[612,48],
+      [158,58],[340,48],[514,52],[66,72],[430,68],[580,70],[230,8],[510,28],
+      [80,150],[200,180],[460,165],[570,145],[310,190],
+    ];
+    for (const [sx, sy] of pts) ctx.fillRect(sx, sy, 1.5, 1.5);
+
+    // Decorative faint pipes
+    ctx.globalAlpha = 0.18;
+    drawPipe(520, 90, 250);
+    drawPipe(100, 70, 230);
+    ctx.globalAlpha = 1;
+
+    // Title
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 58px monospace';
+    ctx.shadowColor = '#FCD34D'; ctx.shadowBlur = 18;
+    ctx.fillStyle = '#FCD34D';
+    ctx.fillText('FLAPPY DUCK', W / 2, 60);
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+
+    // Animated duck
+    const bobY = 160 + Math.sin(bobTimer * 0.055) * 13;
+    const bobA = Math.sin(bobTimer * 0.055) * 0.15;
+    drawDuck(W / 2, bobY, bobA);
+
+    // How to play
+    ctx.font = '15px monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText('Tap or click to flap through the pipes', W / 2, 224);
+    ctx.fillText("Don't hit the pipes or the ground!", W / 2, 246);
+
+    ctx.font = '13px monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText('Space  /  W  /  ↑  also work on keyboard', W / 2, 278);
+
+    // Pulsing prompt
+    const alpha = 0.45 + 0.55 * Math.sin(startPulse);
+    ctx.font = 'bold 14px monospace';
+    ctx.fillStyle = `rgba(252,211,77,${alpha.toFixed(2)})`;
+    ctx.fillText('CLICK  ·  TAP  ·  PRESS SPACE TO START', W / 2, 328);
+  }
+
+  // ── Game loop ───────────────────────────────────────────────
+  function loop() {
+    if (phase === 'start') {
+      startPulse += 0.08;
+      bobTimer++;
+      renderStartScreen();
+    } else {
+      if (phase === 'playing') update();
+      else if (phase === 'gameover' && deathFlash > 0) {
+        duckVY += GRAVITY;
+        duckY  += duckVY;
+        duckAngle = Math.min(1.5, duckAngle + 0.08);
+        groundOffset = (groundOffset + PIPE_SPEED) % 44;
+        deathFlash--;
+      }
+      render();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  initGame();
+  requestAnimationFrame(loop);
+</script>
+</body>
+</html>
