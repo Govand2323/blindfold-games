@@ -17,7 +17,7 @@ Collect the following, either from args or by asking the user:
 | **Game name** | Display name, e.g. "Snake" |
 | **Genre** | One of: Shooter / Puzzle / Strategy / Adventure / Racing / Other |
 | **Emoji** | Single emoji to use as thumbnail icon, e.g. 🐍 |
-| **Game source** | Path to an existing `.html` game file, OR the word `scratch` to generate a starter |
+| **Game source** | Path to an existing `.html` game file (must be iframe-ready — see requirements in Step 1c), OR the word `scratch` to generate a starter |
 | **Thumbnail image** | Path to an image file (JPG/PNG) provided by the user — a screenshot or artwork of the game. This is required; do NOT generate or create an image yourself. |
 | **Controls** | How the player controls the game (keys, mouse, etc.) |
 | **How to play** | 1-2 sentences describing the objective and rules |
@@ -36,6 +36,32 @@ Then derive:
   - Puzzle → `puzzle`
   - All others → `strategy`
 - **Genre label**: display string for the tag (use the genre exactly as given)
+
+---
+
+## Step 1c — Game iframe requirements
+
+The game HTML file must fill the iframe completely with no scrollbars or whitespace. Before proceeding, verify (or ensure when building from scratch) that the game meets these requirements:
+
+**Body must fill the viewport and hide overflow:**
+```css
+body { width: 100vw; height: 100vh; overflow: hidden; }
+```
+
+**All sizing must be responsive — no fixed pixel dimensions for layout:**
+- **Canvas games:** scale the canvas using a resize function, e.g.:
+  ```js
+  function resize() {
+    const scale = Math.min(innerWidth / 640, innerHeight / 360);
+    canvas.style.width  = Math.floor(640 * scale) + 'px';
+    canvas.style.height = Math.floor(360 * scale) + 'px';
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  ```
+- **DOM-based games (non-canvas):** use a **landscape** layout (content arranged horizontally — e.g. game board on one side, info panel on the other). Size everything with `clamp()`, `vmin`, `vw`, or `vh` so content scales with the frame. The board/main element should use something like `width: min(82vh, 46vw); aspect-ratio: 1;` rather than fixed pixel sizes.
+
+If the user's provided game file does not meet these requirements, flag the issue and ask how they want to proceed before continuing.
 
 ---
 
@@ -214,7 +240,7 @@ Create `games/[slug]/index.html` using the template below. Fill in all placehold
 
 ## Step 4 — Create game scaffold (only if user said "scratch")
 
-Create `games/[slug]/game.html` — a minimal self-contained canvas game:
+Create `games/[slug]/game.html` — a minimal self-contained canvas game. This scaffold is already iframe-ready: it fills `100vw × 100vh`, hides overflow, and scales the canvas to fit the frame at any size while preserving 16:9 (640×360). Replace the placeholder render code with the actual game.
 
 ```html
 <!DOCTYPE html>
