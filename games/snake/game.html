@@ -77,7 +77,7 @@
   // ── Game state ─────────────────────────────────────────────
   let snake, dir, nextDir, fruit, powerUp, score, highScore = 0, phase;
   let tickAccum = 0, lastTime = 0;
-  let pulse = 0, starRot = 0;
+  let pulse = 0, starRot = 0, startPulse = 0;
 
   // ── Resize ─────────────────────────────────────────────────
   function resize() {
@@ -130,15 +130,16 @@
   }
 
   // ── Init ───────────────────────────────────────────────────
-  function initGame() {
-    snake     = [{ x: 10, y: 8 }, { x: 9, y: 8 }, { x: 8, y: 8 }];
-    dir       = { x: 1, y: 0 };
-    nextDir   = { x: 1, y: 0 };
-    fruit     = randCell(snake, null);
-    powerUp   = null;
-    score     = 0;
-    phase     = 'playing';
-    tickAccum = 0;
+  function initGame(skipStart = false) {
+    snake      = [{ x: 10, y: 8 }, { x: 9, y: 8 }, { x: 8, y: 8 }];
+    dir        = { x: 1, y: 0 };
+    nextDir    = { x: 1, y: 0 };
+    fruit      = randCell(snake, null);
+    powerUp    = null;
+    score      = 0;
+    phase      = skipStart ? 'playing' : 'start';
+    tickAccum  = 0;
+    startPulse = 0;
   }
 
   // ── Input ──────────────────────────────────────────────────
@@ -154,12 +155,16 @@
   }
 
   document.addEventListener('keydown', e => {
-    if ((e.key === 'r' || e.key === 'R') && phase === 'gameover') { initGame(); return; }
+    if (phase === 'start') { phase = 'playing'; return; }
+    if ((e.key === 'r' || e.key === 'R') && phase === 'gameover') { initGame(true); return; }
     const d = DIRS[e.key];
     if (d) { e.preventDefault(); setDir(d); }
   });
 
-  canvas.addEventListener('click', () => { if (phase === 'gameover') initGame(); });
+  canvas.addEventListener('click', () => {
+    if (phase === 'start') { phase = 'playing'; return; }
+    if (phase === 'gameover') initGame(true);
+  });
 
   // ── Tick ───────────────────────────────────────────────────
   function tick() {
@@ -321,26 +326,101 @@
     }
   }
 
+  // ── Start screen ───────────────────────────────────────────
+  function renderStartScreen() {
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, W, H);
+
+    // Title
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 68px monospace';
+    ctx.shadowColor = '#4ADE80'; ctx.shadowBlur = 18;
+    ctx.fillStyle = '#22C55E';
+    ctx.fillText('SNAKE', W/2, 55);
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+
+    // Decorative S-shaped snake
+    const inset = 2;
+    const segs = [];
+    const sx = 220, sy = 95, cols = 10;
+    for (let i = 0; i < cols; i++)      segs.push({ x: sx + i*CELL, y: sy });
+    for (let i = cols-1; i >= 0; i--)   segs.push({ x: sx + i*CELL, y: sy + CELL });
+    for (let i = 0; i < 7; i++)         segs.push({ x: sx + i*CELL, y: sy + CELL*2 });
+
+    for (let i = 0; i < segs.length; i++) {
+      const bx = segs[i].x, by = segs[i].y;
+      if (i === segs.length - 1) {
+        ctx.shadowColor = '#4ADE80'; ctx.shadowBlur = 6;
+        ctx.fillStyle = '#22C55E';
+        ctx.fillRect(bx+inset, by+inset, CELL-inset*2, CELL-inset*2);
+        ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+        ctx.fillStyle = '#4ADE80';
+        ctx.fillRect(bx+CELL-5, by+inset, 3, CELL-inset*2);
+        const ecx = bx + CELL/2 + 4, ecy = by + CELL/2;
+        ctx.fillStyle = '#0a0a0a';
+        ctx.beginPath(); ctx.arc(ecx, ecy-3, 2.2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ecx, ecy+3, 2.2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.beginPath(); ctx.arc(ecx-0.5, ecy-3.5, 0.7, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ecx-0.5, ecy+2.5, 0.7, 0, Math.PI*2); ctx.fill();
+      } else {
+        ctx.fillStyle = i % 2 === 0 ? '#16A34A' : '#15803D';
+        ctx.fillRect(bx+inset, by+inset, CELL-inset*2, CELL-inset*2);
+      }
+    }
+
+    // Red fruit ahead of head
+    const hx = segs[segs.length-1].x + CELL, hy = segs[segs.length-1].y;
+    const fcx = hx + CELL/2, fcy = hy + CELL/2 + 1;
+    ctx.fillStyle = '#EF4444';
+    ctx.beginPath(); ctx.arc(fcx, fcy, 7, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath(); ctx.arc(fcx-2, fcy-2, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#4ADE80'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(fcx, fcy-7); ctx.lineTo(fcx+2, fcy-11); ctx.stroke();
+
+    // How to play
+    ctx.font = '14px monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.fillText('Eat red fruit to grow · Collect golden power-ups for bonus points', W/2, 218);
+    ctx.fillText('Wrap around the edges · Avoid running into yourself', W/2, 240);
+
+    ctx.font = '13px monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText('WASD  /  Arrow Keys  to steer', W/2, 272);
+
+    // Pulsing prompt
+    const alpha = 0.45 + 0.55 * Math.sin(startPulse);
+    ctx.font = 'bold 14px monospace';
+    ctx.fillStyle = `rgba(74,222,128,${alpha.toFixed(2)})`;
+    ctx.fillText('CLICK  ·  TAP  ·  PRESS ANY KEY TO START', W/2, 326);
+  }
+
   // ── Game loop ──────────────────────────────────────────────
   function loop(now) {
     const dt = Math.min(now - lastTime, 200);
     lastTime = now;
 
-    if (phase === 'playing') {
-      if (powerUp) {
-        powerUp.ms -= dt;
-        if (powerUp.ms <= 0) powerUp = null;
+    if (phase === 'start') {
+      startPulse += 0.08;
+      renderStartScreen();
+    } else {
+      if (phase === 'playing') {
+        if (powerUp) {
+          powerUp.ms -= dt;
+          if (powerUp.ms <= 0) powerUp = null;
+        }
+        tickAccum += dt;
+        while (tickAccum >= TICK_MS) {
+          tick();
+          tickAccum -= TICK_MS;
+        }
+        pulse   += 0.1;
+        starRot += 0.035;
       }
-      tickAccum += dt;
-      while (tickAccum >= TICK_MS) {
-        tick();
-        tickAccum -= TICK_MS;
-      }
-      pulse   += 0.1;
-      starRot += 0.035;
+      render();
     }
 
-    render();
     requestAnimationFrame(loop);
   }
 
@@ -352,7 +432,8 @@
       const el = document.getElementById(id);
       el.addEventListener('touchstart', e => {
         e.preventDefault();
-        if (phase === 'gameover') { initGame(); return; }
+        if (phase === 'start') { phase = 'playing'; return; }
+        if (phase === 'gameover') { initGame(true); return; }
         setDir(d);
         el.classList.add('pressed');
       }, { passive: false });
@@ -365,7 +446,8 @@
     bind('dp-right', { x: 1,  y:  0 });
 
     canvas.addEventListener('touchstart', e => {
-      if (phase === 'gameover') { e.preventDefault(); initGame(); }
+      if (phase === 'start') { e.preventDefault(); phase = 'playing'; return; }
+      if (phase === 'gameover') { e.preventDefault(); initGame(true); }
     }, { passive: false });
   }
 

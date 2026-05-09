@@ -308,21 +308,36 @@ Create `games/[slug]/game.html` — a minimal self-contained canvas game. This s
   resize();
 
   // ── Game state ────────────────────────────────────────
-  // Add your variables here
+  // Phase: 'start' | 'playing' | 'gameover'
+  let phase = 'start', startPulse = 0;
+  // Add your other game variables here
+
+  function initGame(skipStart = false) {
+    // Reset your game state here
+    phase = skipStart ? 'playing' : 'start';
+    startPulse = 0;
+  }
 
   // ── Input ─────────────────────────────────────────────
   const keys = {};
   const mouse = { x: 320, y: 180, down: false, justPressed: false };
 
-  window.addEventListener('keydown', e => keys[e.key] = true);
-  window.addEventListener('keyup',   e => keys[e.key] = false);
+  window.addEventListener('keydown', e => {
+    if (phase === 'start') { phase = 'playing'; return; }
+    keys[e.key] = true;
+  });
+  window.addEventListener('keyup', e => keys[e.key] = false);
   canvas.addEventListener('mousemove', e => {
     const r = canvas.getBoundingClientRect();
     mouse.x = (e.clientX - r.left) * (640 / r.width);
     mouse.y = (e.clientY - r.top)  * (360 / r.height);
   });
-  canvas.addEventListener('mousedown', () => { mouse.down = true; mouse.justPressed = true; });
-  canvas.addEventListener('mouseup',   () => { mouse.down = false; });
+  canvas.addEventListener('mousedown', () => {
+    if (phase === 'start') { phase = 'playing'; return; }
+    if (phase === 'gameover') { initGame(true); return; }
+    mouse.down = true; mouse.justPressed = true;
+  });
+  canvas.addEventListener('mouseup', () => { mouse.down = false; });
 
   // ── Mobile controls ───────────────────────────────────
   window.addEventListener('load', function() {
@@ -358,6 +373,8 @@ Create `games/[slug]/game.html` — a minimal self-contained canvas game. This s
 
     mcLeft.addEventListener('touchstart', e => {
       e.preventDefault();
+      if (phase === 'start') { phase = 'playing'; return; }
+      if (phase === 'gameover') { initGame(true); return; }
       for (const t of e.changedTouches) {
         if (joyId !== null) continue;
         joyId = t.identifier; joyX = t.clientX; joyY = t.clientY;
@@ -390,6 +407,8 @@ Create `games/[slug]/game.html` — a minimal self-contained canvas game. This s
 
     mcRight.addEventListener('touchstart', e => {
       e.preventDefault();
+      if (phase === 'start') { phase = 'playing'; return; }
+      if (phase === 'gameover') { initGame(true); return; }
       for (const t of e.changedTouches) {
         if (fireId !== null) continue;
         fireId = t.identifier; mouse.down = true; mouse.justPressed = true;
@@ -425,25 +444,49 @@ Create `games/[slug]/game.html` — a minimal self-contained canvas game. This s
     mouse.justPressed = false;
   }
 
+  // ── Start screen ──────────────────────────────────────
+  function renderStartScreen() {
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, 640, 360);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // Title
+    ctx.font = 'bold 68px monospace';
+    ctx.fillStyle = '#F97316';
+    ctx.shadowColor = '#F97316'; ctx.shadowBlur = 14;
+    ctx.fillText('[Game Name]', 320, 110);
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+    // How-to-play lines — replace with game-specific text
+    ctx.font = '15px monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.fillText('[How-to-play line 1]', 320, 210);
+    ctx.fillText('[How-to-play line 2]', 320, 234);
+    // Controls hint
+    ctx.font = '13px monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillText('[Controls hint, e.g. WASD to move · Mouse to aim · Click to fire]', 320, 270);
+    // Pulsing start prompt
+    const alpha = 0.45 + 0.55 * Math.sin(startPulse);
+    ctx.font = 'bold 14px monospace';
+    ctx.fillStyle = `rgba(249,115,22,${alpha.toFixed(2)})`;
+    ctx.fillText('CLICK  ·  TAP  ·  PRESS ANY KEY TO START', 320, 326);
+  }
+
   // ── Render ────────────────────────────────────────────
   function render() {
     ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, 640, 360);
-
     // Add your drawing code here
-    ctx.fillStyle = '#F97316';
-    ctx.font = 'bold 32px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('[Game Name]', 320, 180);
-    ctx.font = '14px monospace';
-    ctx.fillStyle = '#9CA3AF';
-    ctx.fillText('Start coding your game here', 320, 215);
   }
 
   // ── Game loop ─────────────────────────────────────────
   function loop() {
-    update();
-    render();
+    if (phase === 'start') {
+      startPulse += 0.08;
+      renderStartScreen();
+    } else {
+      update();
+      render();
+    }
     requestAnimationFrame(loop);
   }
 
